@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { signIn } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { Eye, EyeOff, LogIn, Lock, Mail } from 'lucide-react'
 import toast from 'react-hot-toast'
 
@@ -111,10 +112,10 @@ export default function AdminLoginPage() {
             </button>
           </form>
 
-          <div className="mt-4 p-3 bg-gray-50 rounded-lg text-center">
-            <p className="text-xs text-gray-400">
-              Varsayılan: admin@eugsk.com / admin123
-            </p>
+          <div className="mt-4 text-center">
+            <Link href="/" className="text-xs text-gray-400 hover:text-primary transition-colors">
+              ← Siteye dön
+            </Link>
           </div>
         </div>
       </div>

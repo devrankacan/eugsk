@@ -154,7 +154,7 @@ export default function Header() {
                   </div>
                 </div>
               ) : (
-                <Link href="/admin/login" className="flex items-center gap-1.5 px-3 py-1.5 bg-secondary text-primary rounded-lg text-sm font-semibold hover:bg-secondary-600 transition-all">
+                <Link href="/giris" className="flex items-center gap-1.5 px-3 py-1.5 bg-secondary text-primary rounded-lg text-sm font-semibold hover:bg-secondary-600 transition-all">
                   <User size={14} />
                   <span className="hidden sm:inline">Giriş</span>
                 </Link>
@@ -249,7 +249,7 @@ export default function Header() {
             </button>
           ) : (
             <Link
-              href="/admin/login"
+              href="/giris"
               onClick={() => setMobileOpen(false)}
               className="flex items-center justify-center gap-2 w-full px-4 py-3 bg-secondary text-primary rounded-lg text-sm font-semibold hover:bg-secondary-600 transition-all"
             >
