@@ -5,7 +5,7 @@ import { usePathname } from 'next/navigation'
 import { signOut } from 'next-auth/react'
 import {
   LayoutDashboard, Newspaper, Trophy, Users, Layers,
-  Image, Star, Settings, LogOut, ChevronRight, UserCog
+  Image, Star, Settings, LogOut, ChevronRight, UserCog, X
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -21,35 +21,40 @@ const navItems = [
   { href: '/admin/ayarlar', icon: Settings, label: 'Site Ayarları' },
 ]
 
-export default function AdminSidebar() {
+interface AdminSidebarProps {
+  onClose?: () => void
+}
+
+export default function AdminSidebar({ onClose }: AdminSidebarProps) {
   const pathname = usePathname()
 
   return (
-    <aside className="w-64 min-h-screen bg-primary flex flex-col">
+    <aside className="w-64 h-full min-h-screen bg-primary flex flex-col">
       {/* Logo area */}
-      <div className="p-6 border-b border-white/10">
-        <Link href="/admin" className="flex items-center gap-3">
-          <div className="w-9 h-9 bg-secondary rounded-lg flex items-center justify-center text-primary font-black text-base">
-            E
-          </div>
+      <div className="p-5 border-b border-white/10 flex items-center justify-between">
+        <Link href="/admin" className="flex items-center gap-3" onClick={onClose}>
+          <div className="w-9 h-9 bg-secondary rounded-lg flex items-center justify-center text-primary font-black text-base shrink-0">E</div>
           <div>
             <div className="text-white font-bold text-xs leading-tight">EUGSK</div>
             <div className="text-secondary text-xs">Admin Panel</div>
           </div>
         </Link>
+        {onClose && (
+          <button onClick={onClose} className="lg:hidden text-gray-400 hover:text-white p-1 rounded">
+            <X size={18} />
+          </button>
+        )}
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 p-4 space-y-1">
+      <nav className="flex-1 p-3 space-y-0.5 overflow-y-auto">
         {navItems.map((item) => {
-          const isActive = item.exact
-            ? pathname === item.href
-            : pathname.startsWith(item.href)
-
+          const isActive = item.exact ? pathname === item.href : pathname.startsWith(item.href)
           return (
             <Link
               key={item.href}
               href={item.href}
+              onClick={onClose}
               className={cn(
                 'admin-nav-link',
                 isActive && 'active'
@@ -64,12 +69,8 @@ export default function AdminSidebar() {
       </nav>
 
       {/* Bottom actions */}
-      <div className="p-4 border-t border-white/10">
-        <Link
-          href="/"
-          className="admin-nav-link mb-1"
-          target="_blank"
-        >
+      <div className="p-3 border-t border-white/10 space-y-1">
+        <Link href="/" target="_blank" className="admin-nav-link" onClick={onClose}>
           <ChevronRight size={18} />
           <span>Siteyi Görüntüle</span>
         </Link>

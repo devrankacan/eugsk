@@ -8,7 +8,7 @@ export default function AdminHeader({ title }: { title?: string }) {
   const { data: session } = useSession()
 
   return (
-    <header className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-6">
+    <header className="h-14 lg:h-16 mt-14 lg:mt-0 bg-white border-b border-gray-200 flex items-center justify-between px-4 lg:px-6">
       <div className="flex items-center gap-3">
         <Link href="/" className="text-gray-400 hover:text-primary transition-colors">
           <Home size={18} />

@@ -14,26 +14,11 @@ interface Sponsor {
   name: string
   logo: string
   website?: string
-  tier: string
   order: number
   active: boolean
 }
 
-const TIERS = [
-  { value: 'MAIN', label: 'Ana Sponsor' },
-  { value: 'GOLD', label: 'Altın Sponsor' },
-  { value: 'SILVER', label: 'Gümüş Sponsor' },
-  { value: 'BRONZE', label: 'Bronz Sponsor' },
-]
-
-const tierColors: Record<string, string> = {
-  MAIN: 'bg-primary text-white',
-  GOLD: 'bg-yellow-100 text-yellow-800',
-  SILVER: 'bg-gray-100 text-gray-700',
-  BRONZE: 'bg-orange-100 text-orange-700',
-}
-
-const emptyForm = { name: '', logo: '', website: '', tier: 'BRONZE', order: 0, active: true }
+const emptyForm = { name: '', logo: '', website: '', order: 0, active: true }
 
 export default function AdminSponsorlarPage() {
   const [sponsors, setSponsors] = useState<Sponsor[]>([])
@@ -64,7 +49,7 @@ export default function AdminSponsorlarPage() {
 
   function openEdit(s: Sponsor) {
     setEditItem(s)
-    setForm({ name: s.name, logo: s.logo, website: s.website || '', tier: s.tier, order: s.order, active: s.active })
+    setForm({ name: s.name, logo: s.logo, website: s.website || '', order: s.order, active: s.active })
     setModalOpen(true)
   }
 
@@ -74,7 +59,7 @@ export default function AdminSponsorlarPage() {
     try {
       const url = editItem ? `/api/sponsorlar/${editItem.id}` : '/api/sponsorlar'
       const method = editItem ? 'PUT' : 'POST'
-      const res = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(form) })
+      const res = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...form, tier: 'MAIN' }) })
       if (!res.ok) throw new Error((await res.json()).error)
       toast.success(editItem ? 'Sponsor güncellendi' : 'Sponsor eklendi')
       setModalOpen(false)
@@ -102,19 +87,25 @@ export default function AdminSponsorlarPage() {
 
         {loading ? (
           <div className="text-center py-12 text-gray-400">Yükleniyor...</div>
+        ) : sponsors.length === 0 ? (
+          <div className="text-center py-16 text-gray-400">
+            <p className="text-lg mb-2">Henüz sponsor eklenmemiş</p>
+            <Button onClick={openCreate}><Plus size={16} />İlk Sponsoru Ekle</Button>
+          </div>
         ) : (
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
             {sponsors.map(s => (
               <div key={s.id} className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
-                <div className="relative h-28 bg-gray-50 p-4">
+                <div className="relative h-24 bg-gray-50 p-3">
                   <Image src={s.logo} alt={s.name} fill className="object-contain p-2" />
-                  {!s.active && <div className="absolute inset-0 bg-white/70 flex items-center justify-center"><span className="text-gray-400 text-xs">Pasif</span></div>}
+                  {!s.active && (
+                    <div className="absolute inset-0 bg-white/70 flex items-center justify-center">
+                      <span className="text-gray-400 text-xs">Pasif</span>
+                    </div>
+                  )}
                 </div>
-                <div className="p-3">
+                <div className="p-2.5">
                   <p className="font-bold text-gray-900 text-sm truncate">{s.name}</p>
-                  <span className={`badge text-xs mt-1 ${tierColors[s.tier] || 'bg-gray-100 text-gray-600'}`}>
-                    {TIERS.find(t => t.value === s.tier)?.label || s.tier}
-                  </span>
                   {s.website && (
                     <a href={s.website} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-xs text-primary mt-1 hover:underline truncate">
                       <ExternalLink size={10} />
@@ -140,7 +131,7 @@ export default function AdminSponsorlarPage() {
         <div className="space-y-4">
           <div>
             <label className="form-label">Sponsor Adı *</label>
-            <input type="text" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} className="form-input" />
+            <input type="text" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} className="form-input" placeholder="Sponsor adı" />
           </div>
           <div>
             <label className="form-label">Logo *</label>
@@ -148,22 +139,16 @@ export default function AdminSponsorlarPage() {
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="form-label">Sponsor Seviyesi</label>
-              <select value={form.tier} onChange={e => setForm({ ...form, tier: e.target.value })} className="form-input">
-                {TIERS.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
-              </select>
+              <label className="form-label">Web Sitesi</label>
+              <input type="url" value={form.website} onChange={e => setForm({ ...form, website: e.target.value })} className="form-input" placeholder="https://" />
             </div>
             <div>
               <label className="form-label">Sıra</label>
               <input type="number" value={form.order} onChange={e => setForm({ ...form, order: parseInt(e.target.value) || 0 })} className="form-input" />
             </div>
           </div>
-          <div>
-            <label className="form-label">Web Sitesi</label>
-            <input type="url" value={form.website} onChange={e => setForm({ ...form, website: e.target.value })} className="form-input" placeholder="https://" />
-          </div>
           <div className="flex items-center gap-2">
-            <input type="checkbox" id="spActive" checked={form.active} onChange={e => setForm({ ...form, active: e.target.checked })} className="w-4 h-4 text-primary rounded" />
+            <input type="checkbox" id="spActive" checked={form.active} onChange={e => setForm({ ...form, active: e.target.checked })} className="w-4 h-4 accent-primary rounded" />
             <label htmlFor="spActive" className="text-sm font-medium text-gray-700">Aktif</label>
           </div>
         </div>

@@ -83,12 +83,12 @@
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #1a3a6b;
+  background: #6B1A3A;
   border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #0f2548;
+  background: #4a0f28;
 }
 
 /* Prose styles for news content */
