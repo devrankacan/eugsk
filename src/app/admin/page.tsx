@@ -3,6 +3,8 @@ import AdminHeader from '@/components/admin/AdminHeader'
 import { Newspaper, Trophy, Users, Layers, Star, Activity, TrendingUp, Eye } from 'lucide-react'
 import Link from 'next/link'
 
+export const dynamic = 'force-dynamic'
+
 export default async function AdminDashboardPage() {
   const [newsCount, matchCount, playerCount, branchCount, sponsorCount, recentNews, upcomingMatches] = await Promise.all([
     prisma.news.count(),
