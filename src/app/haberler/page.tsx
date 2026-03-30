@@ -3,6 +3,8 @@ import Header from '@/components/layout/Header'
 import Footer from '@/components/layout/Footer'
 import Link from 'next/link'
 import Image from 'next/image'
+
+export const dynamic = 'force-dynamic'
 import { Calendar, Eye } from 'lucide-react'
 import { formatDate } from '@/lib/utils'
 

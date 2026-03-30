@@ -3,6 +3,8 @@ import { notFound } from 'next/navigation'
 import Header from '@/components/layout/Header'
 import Footer from '@/components/layout/Footer'
 import Image from 'next/image'
+
+export const dynamic = 'force-dynamic'
 import Link from 'next/link'
 import { Calendar, Eye, ArrowLeft } from 'lucide-react'
 import { formatDate } from '@/lib/utils'

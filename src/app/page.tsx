@@ -63,7 +63,12 @@ export default async function HomePage() {
     <>
       <Header />
       <main>
-        <HeroSlider items={sliderItems} />
+        <HeroSlider items={sliderItems.map(s => ({
+          ...s,
+          title: s.title ?? undefined,
+          description: s.description ?? undefined,
+          link: s.link ?? undefined,
+        }))} />
 
         {/* Stats bar */}
         <div className="bg-primary text-white py-4">
@@ -87,9 +92,12 @@ export default async function HomePage() {
         <NewsSection news={news as any} />
         <MatchCenter matches={matches as any} />
         {branches.length > 0 && players.length > 0 && (
-          <TeamsSection players={players as any} branches={branches} />
+          <TeamsSection
+            players={players as any}
+            branches={branches.map(b => ({ ...b, icon: b.icon ?? undefined }))}
+          />
         )}
-        <SponsorsSection sponsors={sponsors} />
+        <SponsorsSection sponsors={sponsors.map(s => ({ ...s, website: s.website ?? undefined }))} />
       </main>
       <Footer />
     </>

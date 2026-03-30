@@ -4,7 +4,7 @@ import Footer from '@/components/layout/Footer'
 import { formatDateTime } from '@/lib/utils'
 import { Trophy, Clock, MapPin, Calendar } from 'lucide-react'
 
-export const revalidate = 60
+export const dynamic = 'force-dynamic'
 
 const statusConfig: Record<string, { label: string; bg: string; text: string }> = {
   FINISHED: { label: 'Bitti', bg: 'bg-gray-100', text: 'text-gray-600' },

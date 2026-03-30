@@ -5,7 +5,7 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { User } from 'lucide-react'
 
-export const revalidate = 60
+export const dynamic = 'force-dynamic'
 
 export default async function TakimPage() {
   const branches = await prisma.branch.findMany({

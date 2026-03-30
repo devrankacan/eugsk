@@ -3,6 +3,8 @@ import { notFound } from 'next/navigation'
 import Header from '@/components/layout/Header'
 import Footer from '@/components/layout/Footer'
 import Image from 'next/image'
+
+export const dynamic = 'force-dynamic'
 import { User } from 'lucide-react'
 
 export default async function BranchDetailPage({ params }: { params: { slug: string } }) {
