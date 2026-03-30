@@ -36,7 +36,6 @@ export default async function TakimPage() {
               <div key={branch.id} className="mb-12">
                 <div className="flex items-center justify-between mb-6">
                   <h2 className="text-xl font-bold text-primary flex items-center gap-2">
-                    <span>{branch.icon}</span>
                     {branch.name}
                     <span className="text-sm text-gray-400 font-normal">({branch.players.length} sporcu)</span>
                   </h2>

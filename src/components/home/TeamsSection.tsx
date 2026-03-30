@@ -54,13 +54,12 @@ export default function TeamsSection({ players, branches }: TeamsSectionProps) {
             <button
               key={branch.id}
               onClick={() => setActiveBranch(branch.id)}
-              className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all ${
+              className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
                 activeBranch === branch.id
                   ? 'bg-primary text-white shadow-md'
                   : 'bg-white text-gray-600 hover:bg-primary-50 hover:text-primary border border-gray-200'
               }`}
             >
-              <span>{branch.icon}</span>
               {branch.name}
             </button>
           ))}

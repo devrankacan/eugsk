@@ -9,20 +9,20 @@ import { cn } from '@/lib/utils'
 
 const navLinks = [
   { href: '/', label: 'Ana Sayfa' },
+  { href: '/hakkimizda', label: 'Hakkımızda' },
   { href: '/haberler', label: 'Haberler' },
   { href: '/mac-merkezi', label: 'Maç Merkezi' },
   {
     href: '/branslar',
     label: 'Branşlar',
     children: [
-      { href: '/branslar/futbol', label: '⚽ Futbol' },
-      { href: '/branslar/basketbol', label: '🏀 Basketbol' },
-      { href: '/branslar/voleybol', label: '🏐 Voleybol' },
-      { href: '/branslar/atletizm', label: '🏃 Atletizm' },
-      { href: '/branslar/yuzme', label: '🏊 Yüzme' },
+      { href: '/branslar/futbol', label: 'Futbol' },
+      { href: '/branslar/basketbol', label: 'Basketbol' },
+      { href: '/branslar/voleybol', label: 'Voleybol' },
+      { href: '/branslar/atletizm', label: 'Atletizm' },
+      { href: '/branslar/yuzme', label: 'Yüzme' },
     ],
   },
-  { href: '/takim', label: 'Takım' },
   { href: '/iletisim', label: 'İletişim' },
 ]
 
@@ -69,7 +69,6 @@ export default function Header() {
         <span>{siteSettings?.email || 'info@erzurumuniversiteligenclersk.org'}</span>
         <div className="flex gap-4">
           {siteSettings?.facebook && <a href={siteSettings.facebook} target="_blank" rel="noopener noreferrer" className="hover:text-secondary transition-colors">Facebook</a>}
-          {siteSettings?.twitter && <a href={siteSettings.twitter} target="_blank" rel="noopener noreferrer" className="hover:text-secondary transition-colors">Twitter</a>}
           {siteSettings?.instagram && <a href={siteSettings.instagram} target="_blank" rel="noopener noreferrer" className="hover:text-secondary transition-colors">Instagram</a>}
         </div>
       </div>

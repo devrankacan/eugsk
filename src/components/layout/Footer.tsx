@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
-import { Mail, Phone, MapPin, Facebook, Twitter, Instagram, Youtube, Send } from 'lucide-react'
+import { Mail, Phone, MapPin, Facebook, Instagram, Youtube, Send } from 'lucide-react'
 import toast from 'react-hot-toast'
 
 export default function Footer() {
@@ -55,12 +55,6 @@ export default function Footer() {
                   <Facebook size={16} />
                 </a>
               )}
-              {settings?.twitter && (
-                <a href={settings.twitter} target="_blank" rel="noopener noreferrer"
-                   className="w-8 h-8 bg-white/10 rounded-lg flex items-center justify-center hover:bg-secondary hover:text-primary transition-all">
-                  <Twitter size={16} />
-                </a>
-              )}
               {settings?.instagram && (
                 <a href={settings.instagram} target="_blank" rel="noopener noreferrer"
                    className="w-8 h-8 bg-white/10 rounded-lg flex items-center justify-center hover:bg-secondary hover:text-primary transition-all">
@@ -87,7 +81,7 @@ export default function Footer() {
                 { href: '/haberler', label: 'Haberler' },
                 { href: '/mac-merkezi', label: 'Maç Merkezi' },
                 { href: '/branslar', label: 'Branşlar' },
-                { href: '/takim', label: 'Takım' },
+                { href: '/hakkimizda', label: 'Hakkımızda' },
                 { href: '/iletisim', label: 'İletişim' },
               ].map((link) => (
                 <li key={link.href}>

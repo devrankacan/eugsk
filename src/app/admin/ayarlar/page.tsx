@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import AdminHeader from '@/components/admin/AdminHeader'
 import Button from '@/components/ui/Button'
 import ImageUpload from '@/components/ui/ImageUpload'
-import { Save, Globe, Mail, Phone, MapPin, Facebook, Twitter, Instagram, Youtube } from 'lucide-react'
+import { Save, Globe, Mail, Phone, MapPin, Facebook, Instagram, Youtube } from 'lucide-react'
 import toast from 'react-hot-toast'
 
 interface SiteSettings {
@@ -15,7 +15,6 @@ interface SiteSettings {
   phone: string
   address: string
   facebook: string
-  twitter: string
   instagram: string
   youtube: string
   description: string
@@ -30,7 +29,6 @@ const defaultSettings: SiteSettings = {
   phone: '+90 442 000 0000',
   address: 'Atatürk Üniversitesi Kampüsü, Erzurum',
   facebook: '',
-  twitter: '',
   instagram: '',
   youtube: '',
   description: '',
@@ -152,10 +150,6 @@ export default function AdminAyarlarPage() {
               <div>
                 <label className="form-label flex items-center gap-1"><Facebook size={14} /> Facebook</label>
                 <input type="url" value={settings.facebook} onChange={e => set('facebook')(e.target.value)} className="form-input" placeholder="https://facebook.com/..." />
-              </div>
-              <div>
-                <label className="form-label flex items-center gap-1"><Twitter size={14} /> Twitter / X</label>
-                <input type="url" value={settings.twitter} onChange={e => set('twitter')(e.target.value)} className="form-input" placeholder="https://twitter.com/..." />
               </div>
               <div>
                 <label className="form-label flex items-center gap-1"><Instagram size={14} /> Instagram</label>
