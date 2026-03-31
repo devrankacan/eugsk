@@ -27,7 +27,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { name, description, icon, order, active } = body
+    const { name, description, gender, order, active } = body
 
     if (!name) {
       return NextResponse.json({ error: 'Branş adı gerekli' }, { status: 400 })
@@ -39,7 +39,7 @@ export async function POST(request: NextRequest) {
         name,
         slug,
         description: description || null,
-        icon: icon || null,
+        gender: gender || 'KARMA',
         order: order || 0,
         active: active !== false,
       },

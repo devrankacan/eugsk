@@ -11,8 +11,13 @@ export async function GET(request: NextRequest) {
 
     const where: any = {}
     if (branchId) where.branchId = branchId
-    if (active !== null) where.active = active === 'true'
-    else where.active = true
+    if (active === 'all') {
+      // no active filter
+    } else if (active !== null) {
+      where.active = active === 'true'
+    } else {
+      where.active = true
+    }
 
     const players = await prisma.player.findMany({
       where,

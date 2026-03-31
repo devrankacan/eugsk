@@ -11,11 +11,11 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
     }
 
     const body = await request.json()
-    const { name, description, icon, order, active } = body
+    const { name, description, gender, order, active } = body
 
     const branch = await prisma.branch.update({
       where: { id: params.id },
-      data: { name, description, icon, order, active },
+      data: { name, description, gender: gender || 'KARMA', order, active },
     })
 
     return NextResponse.json(branch)

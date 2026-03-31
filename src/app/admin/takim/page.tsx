@@ -6,7 +6,6 @@ import Modal from '@/components/ui/Modal'
 import Button from '@/components/ui/Button'
 import ImageUpload from '@/components/ui/ImageUpload'
 import { Plus, Edit2, Trash2, User } from 'lucide-react'
-import Image from 'next/image'
 import toast from 'react-hot-toast'
 
 interface Player {
@@ -19,10 +18,10 @@ interface Player {
   nationality?: string
   active: boolean
   branchId: string
-  branch: { name: string; icon?: string }
+  branch: { name: string }
 }
 
-interface Branch { id: string; name: string; icon?: string }
+interface Branch { id: string; name: string }
 
 const emptyForm = {
   firstName: '',
@@ -55,7 +54,7 @@ export default function AdminTakimPage() {
   async function fetchPlayers() {
     setLoading(true)
     try {
-      const res = await fetch('/api/takim?active=false')
+      const res = await fetch('/api/takim?active=all')
       const data = await res.json()
       setPlayers(Array.isArray(data) ? data : [])
     } catch { toast.error('Oyuncular yüklenemedi') }
@@ -139,7 +138,7 @@ export default function AdminTakimPage() {
             className="form-input w-48"
           >
             <option value="">Tüm Branşlar</option>
-            {branches.map(b => <option key={b.id} value={b.id}>{b.icon} {b.name}</option>)}
+            {branches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
           </select>
           <Button onClick={openCreate}>
             <Plus size={16} />
@@ -155,7 +154,8 @@ export default function AdminTakimPage() {
               <div key={player.id} className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden group">
                 <div className="relative h-36 bg-primary-100">
                   {player.photo ? (
-                    <Image src={player.photo} alt={`${player.firstName} ${player.lastName}`} fill className="object-cover" />
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={player.photo} alt={`${player.firstName} ${player.lastName}`} className="w-full h-full object-cover" />
                   ) : (
                     <div className="absolute inset-0 flex items-end justify-center">
                       <User className="w-20 h-20 text-primary-200" />
@@ -175,7 +175,7 @@ export default function AdminTakimPage() {
                 <div className="p-2 text-center">
                   <p className="font-bold text-gray-900 text-xs truncate">{player.firstName} {player.lastName}</p>
                   <p className="text-xs text-primary mt-0.5 truncate">{player.position || '-'}</p>
-                  <p className="text-xs text-gray-400 truncate">{player.branch.icon} {player.branch.name}</p>
+                  <p className="text-xs text-gray-400 truncate">{player.branch.name}</p>
                 </div>
                 <div className="flex border-t border-gray-100">
                   <button onClick={() => openEdit(player)} className="flex-1 py-1.5 text-xs text-gray-500 hover:text-primary hover:bg-primary-50 transition-all flex items-center justify-center gap-1">
@@ -226,7 +226,7 @@ export default function AdminTakimPage() {
               <label className="form-label">Branş *</label>
               <select value={form.branchId} onChange={e => setForm({ ...form, branchId: e.target.value })} className="form-input">
                 <option value="">Seçin...</option>
-                {branches.map(b => <option key={b.id} value={b.id}>{b.icon} {b.name}</option>)}
+                {branches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
               </select>
             </div>
             <div>

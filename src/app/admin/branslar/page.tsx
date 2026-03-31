@@ -14,14 +14,14 @@ interface Branch {
   name: string
   slug: string
   description?: string
-  icon?: string
+  gender?: string
   order: number
   active: boolean
   _count?: { players: number; matches: number }
   ageCategories?: AgeCategory[]
 }
 
-const emptyForm = { name: '', description: '', icon: '', order: 0, active: true }
+const emptyForm = { name: '', description: '', gender: 'KARMA', order: 0, active: true }
 
 export default function AdminBranslarPage() {
   const [branches, setBranches] = useState<Branch[]>([])
@@ -101,7 +101,7 @@ export default function AdminBranslarPage() {
 
   function openEdit(b: Branch) {
     setEditItem(b)
-    setForm({ name: b.name, description: b.description || '', icon: b.icon || '', order: b.order, active: b.active })
+    setForm({ name: b.name, description: b.description || '', gender: b.gender || 'KARMA', order: b.order, active: b.active })
     setModalOpen(true)
   }
 
@@ -146,8 +146,8 @@ export default function AdminBranslarPage() {
               <div key={b.id} className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
                 <div className="p-5 flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-lg bg-primary-50 flex items-center justify-center text-xl font-bold text-primary">
-                      {b.icon || b.name.charAt(0)}
+                    <div className="w-10 h-10 rounded-lg bg-primary-50 flex items-center justify-center text-lg font-bold text-primary">
+                      {b.name.charAt(0)}
                     </div>
                     <div>
                       <h3 className="font-bold text-gray-900">{b.name}</h3>
@@ -155,6 +155,11 @@ export default function AdminBranslarPage() {
                         <span className={`badge text-xs ${b.active ? 'badge-green' : 'bg-gray-100 text-gray-500'}`}>
                           {b.active ? 'Aktif' : 'Pasif'}
                         </span>
+                        {b.gender && b.gender !== 'KARMA' && (
+                          <span className="text-xs px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 font-medium">
+                            {b.gender === 'ERKEK' ? 'Erkek' : 'Kadın'}
+                          </span>
+                        )}
                         {b._count && (
                           <>
                             <span className="flex items-center gap-1 text-xs text-gray-400"><Users size={11} />{b._count.players}</span>
@@ -233,8 +238,12 @@ export default function AdminBranslarPage() {
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="form-label">İkon (emoji)</label>
-              <input type="text" value={form.icon} onChange={e => setForm({ ...form, icon: e.target.value })} className="form-input text-2xl" placeholder="⚽" />
+              <label className="form-label">Cinsiyet</label>
+              <select value={form.gender} onChange={e => setForm({ ...form, gender: e.target.value })} className="form-input">
+                <option value="KARMA">Karma</option>
+                <option value="ERKEK">Erkek</option>
+                <option value="KADIN">Kadın</option>
+              </select>
             </div>
             <div>
               <label className="form-label">Sıra</label>

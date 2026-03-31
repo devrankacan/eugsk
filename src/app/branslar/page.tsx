@@ -34,13 +34,18 @@ export default async function BranslarPage() {
               <Link key={branch.id} href={`/branslar/${branch.slug}`}>
                 <div className="card group p-6 hover:border-primary-200 border border-transparent">
                   <div className="flex items-center gap-4 mb-4">
-                    <div className="w-16 h-16 bg-primary-100 rounded-2xl flex items-center justify-center text-4xl group-hover:bg-primary group-hover:text-white transition-all">
-                      {branch.icon || '🏆'}
+                    <div className="w-16 h-16 bg-primary-100 rounded-2xl flex items-center justify-center text-2xl font-black text-primary group-hover:bg-primary group-hover:text-white transition-all">
+                      {(branch as any).name.charAt(0)}
                     </div>
                     <div>
                       <h2 className="text-xl font-bold text-primary group-hover:text-primary-800 transition-colors">
                         {branch.name}
                       </h2>
+                      {(branch as any).gender && (branch as any).gender !== 'KARMA' && (
+                        <span className="text-xs px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 font-medium">
+                          {(branch as any).gender === 'ERKEK' ? 'Erkek' : 'Kadın'}
+                        </span>
+                      )}
                     </div>
                   </div>
                   {branch.description && (

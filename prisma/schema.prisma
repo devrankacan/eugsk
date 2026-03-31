@@ -81,6 +81,7 @@ model Branch {
   slug        String   @unique
   description String?
   icon        String?
+  gender      String   @default("KARMA")
   order       Int      @default(0)
   active      Boolean  @default(true)
   createdAt   DateTime @default(now())
