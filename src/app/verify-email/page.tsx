@@ -1,14 +1,13 @@
 'use client'
 
-import { useState, useRef } from 'react'
-import { useSearchParams, useRouter } from 'next/navigation'
+import { Suspense, useState, useRef } from 'react'
+import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { CheckCircle, Mail, ArrowLeft } from 'lucide-react'
 import toast from 'react-hot-toast'
 
-export default function VerifyEmailPage() {
+function VerifyEmailForm() {
   const searchParams = useSearchParams()
-  const router = useRouter()
   const initialEmail = searchParams.get('email') || ''
   const [email, setEmail] = useState(initialEmail)
   const [code, setCode] = useState(['', '', '', '', '', ''])
@@ -67,92 +66,98 @@ export default function VerifyEmailPage() {
 
   if (success) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center p-4">
-        <div className="w-full max-w-md text-center bg-white rounded-2xl shadow-xl p-10">
-          <div className="flex justify-center mb-4">
-            <CheckCircle size={56} className="text-green-500" />
-          </div>
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">Doğrulama Başarılı!</h2>
-          <p className="text-gray-500 mb-6">Hesabınız aktifleştirildi. Şimdi giriş yapabilirsiniz.</p>
-          <Link href="/giris" className="btn-primary inline-flex items-center gap-2">
-            Giriş Yap
-          </Link>
+      <div className="w-full max-w-md text-center bg-white rounded-2xl shadow-xl p-10">
+        <div className="flex justify-center mb-4">
+          <CheckCircle size={56} className="text-green-500" />
         </div>
+        <h2 className="text-2xl font-bold text-gray-900 mb-2">Doğrulama Başarılı!</h2>
+        <p className="text-gray-500 mb-6">Hesabınız aktifleştirildi. Şimdi giriş yapabilirsiniz.</p>
+        <Link href="/giris" className="btn-primary inline-flex items-center gap-2">
+          Giriş Yap
+        </Link>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center p-4">
-      <div className="w-full max-w-md">
-        <Link href="/uye-ol" className="inline-flex items-center gap-2 text-gray-500 hover:text-primary text-sm mb-6 transition-colors">
-          <ArrowLeft size={16} /> Geri
-        </Link>
-        <div className="bg-white rounded-2xl shadow-xl overflow-hidden">
-          <div className="bg-primary px-8 py-6 text-center">
-            <div className="inline-flex items-center justify-center w-14 h-14 bg-secondary rounded-full mb-3">
-              <Mail size={24} className="text-primary" />
-            </div>
-            <h1 className="text-white font-bold text-lg">E-posta Doğrulama</h1>
-            <p className="text-primary-200 text-sm mt-1">6 haneli doğrulama kodunu girin</p>
+    <div className="w-full max-w-md">
+      <Link href="/uye-ol" className="inline-flex items-center gap-2 text-gray-500 hover:text-primary text-sm mb-6 transition-colors">
+        <ArrowLeft size={16} /> Geri
+      </Link>
+      <div className="bg-white rounded-2xl shadow-xl overflow-hidden">
+        <div className="bg-primary px-8 py-6 text-center">
+          <div className="inline-flex items-center justify-center w-14 h-14 bg-secondary rounded-full mb-3">
+            <Mail size={24} className="text-primary" />
           </div>
-          <div className="px-8 py-7">
-            <p className="text-sm text-gray-500 text-center mb-6">
-              <strong>{email || 'E-posta adresinize'}</strong> gönderilen 6 haneli kodu girin.
-              Kod <strong>15 dakika</strong> geçerlidir.
-            </p>
-            <form onSubmit={handleSubmit} className="space-y-6">
-              {!initialEmail && (
-                <div>
-                  <label className="form-label">E-posta Adresiniz</label>
-                  <input
-                    type="email"
-                    required
-                    value={email}
-                    onChange={e => setEmail(e.target.value)}
-                    className="form-input"
-                    placeholder="ornek@email.com"
-                  />
-                </div>
-              )}
+          <h1 className="text-white font-bold text-lg">E-posta Doğrulama</h1>
+          <p className="text-primary-200 text-sm mt-1">6 haneli doğrulama kodunu girin</p>
+        </div>
+        <div className="px-8 py-7">
+          <p className="text-sm text-gray-500 text-center mb-6">
+            <strong>{email || 'E-posta adresinize'}</strong> gönderilen 6 haneli kodu girin.
+            Kod <strong>15 dakika</strong> geçerlidir.
+          </p>
+          <form onSubmit={handleSubmit} className="space-y-6">
+            {!initialEmail && (
               <div>
-                <label className="form-label text-center block mb-3">Doğrulama Kodu</label>
-                <div className="flex gap-2 justify-center" onPaste={handlePaste}>
-                  {code.map((digit, i) => (
-                    <input
-                      key={i}
-                      ref={el => { inputs.current[i] = el }}
-                      type="text"
-                      inputMode="numeric"
-                      maxLength={1}
-                      value={digit}
-                      onChange={e => handleInput(i, e.target.value)}
-                      onKeyDown={e => handleKeyDown(i, e)}
-                      className="w-12 h-14 text-center text-2xl font-bold border-2 border-gray-200 rounded-xl focus:border-primary focus:outline-none transition-colors"
-                    />
-                  ))}
-                </div>
+                <label className="form-label">E-posta Adresiniz</label>
+                <input
+                  type="email"
+                  required
+                  value={email}
+                  onChange={e => setEmail(e.target.value)}
+                  className="form-input"
+                  placeholder="ornek@email.com"
+                />
               </div>
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full btn-primary py-3 flex items-center justify-center gap-2"
-              >
-                {loading ? (
-                  <div className="animate-spin h-5 w-5 border-2 border-white border-t-transparent rounded-full" />
-                ) : (
-                  <CheckCircle size={18} />
-                )}
-                {loading ? 'Doğrulanıyor...' : 'Doğrula'}
-              </button>
-            </form>
-            <p className="mt-4 text-center text-xs text-gray-400">
-              Kod gelmedi mi?{' '}
-              <Link href="/uye-ol" className="text-primary hover:underline">Yeniden kayıt ol</Link>
-            </p>
-          </div>
+            )}
+            <div>
+              <label className="form-label text-center block mb-3">Doğrulama Kodu</label>
+              <div className="flex gap-2 justify-center" onPaste={handlePaste}>
+                {code.map((digit, i) => (
+                  <input
+                    key={i}
+                    ref={el => { inputs.current[i] = el }}
+                    type="text"
+                    inputMode="numeric"
+                    maxLength={1}
+                    value={digit}
+                    onChange={e => handleInput(i, e.target.value)}
+                    onKeyDown={e => handleKeyDown(i, e)}
+                    className="w-12 h-14 text-center text-2xl font-bold border-2 border-gray-200 rounded-xl focus:border-primary focus:outline-none transition-colors"
+                  />
+                ))}
+              </div>
+            </div>
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full btn-primary py-3 flex items-center justify-center gap-2"
+            >
+              {loading ? (
+                <div className="animate-spin h-5 w-5 border-2 border-white border-t-transparent rounded-full" />
+              ) : (
+                <CheckCircle size={18} />
+              )}
+              {loading ? 'Doğrulanıyor...' : 'Doğrula'}
+            </button>
+          </form>
+          <p className="mt-4 text-center text-xs text-gray-400">
+            Kod gelmedi mi?{' '}
+            <Link href="/uye-ol" className="text-primary hover:underline">Yeniden kayıt ol</Link>
+          </p>
         </div>
       </div>
+    </div>
+  )
+}
+
+export default function VerifyEmailPage() {
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center p-4">
+      <Suspense fallback={<div className="text-gray-400">Yükleniyor...</div>}>
+        <VerifyEmailForm />
+      </Suspense>
     </div>
   )
 }
