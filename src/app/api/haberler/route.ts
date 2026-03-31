@@ -51,14 +51,14 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { title, content, excerpt, image, category, published, publishedAt } = body
+    const { title, content, excerpt, image, images, category, published, publishedAt } = body
 
     if (!title || !content) {
       return NextResponse.json({ error: 'Başlık ve içerik gerekli' }, { status: 400 })
     }
 
     const slug = slugify(title)
-    
+
     // Check unique slug
     let finalSlug = slug
     let counter = 1
@@ -74,6 +74,7 @@ export async function POST(request: NextRequest) {
         content,
         excerpt: excerpt || null,
         image: image || null,
+        images: Array.isArray(images) ? images.filter(Boolean) : [],
         category: category || 'Genel',
         published: published || false,
         publishedAt: published ? (publishedAt ? new Date(publishedAt) : new Date()) : null,

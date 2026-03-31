@@ -2,7 +2,6 @@ import { prisma } from '@/lib/prisma'
 import { notFound } from 'next/navigation'
 import Header from '@/components/layout/Header'
 import Footer from '@/components/layout/Footer'
-import Image from 'next/image'
 
 export const dynamic = 'force-dynamic'
 import Link from 'next/link'
@@ -35,8 +34,9 @@ export default async function NewsDetailPage({ params }: { params: { slug: strin
       <main>
         {/* Hero */}
         {news.image && (
-          <div className="relative w-full h-[300px] md:h-[400px] bg-primary">
-            <Image src={news.image} alt={news.title} fill className="object-cover opacity-70" />
+          <div className="relative w-full h-[300px] md:h-[400px] bg-primary overflow-hidden">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={news.image} alt={news.title} className="w-full h-full object-cover opacity-70" />
             <div className="absolute inset-0 bg-gradient-to-t from-primary via-primary/30 to-transparent" />
           </div>
         )}
@@ -76,6 +76,24 @@ export default async function NewsDetailPage({ params }: { params: { slug: strin
               dangerouslySetInnerHTML={{ __html: news.content }}
             />
           </article>
+
+          {/* Image gallery */}
+          {(news as any).images?.length > 0 && (
+            <div className="mt-8">
+              <h2 className="text-lg font-bold text-gray-900 mb-4">Fotoğraflar</h2>
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                {(news as any).images.map((img: string, idx: number) => (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    key={idx}
+                    src={img}
+                    alt={`${news.title} - ${idx + 1}`}
+                    className="w-full h-48 object-cover rounded-lg border border-gray-100 hover:opacity-90 transition-opacity cursor-pointer"
+                  />
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Back button */}
           <div className="mt-8 pt-6 border-t border-gray-100">

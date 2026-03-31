@@ -64,6 +64,7 @@ model News {
   content     String   @db.Text
   excerpt     String?
   image       String?
+  images      String[]
   category    String   @default("Genel")
   published   Boolean  @default(false)
   publishedAt DateTime?

@@ -5,7 +5,7 @@ import AdminHeader from '@/components/admin/AdminHeader'
 import Modal from '@/components/ui/Modal'
 import ImageUpload from '@/components/ui/ImageUpload'
 import Button from '@/components/ui/Button'
-import { Plus, Edit2, Trash2, Eye, EyeOff, Search } from 'lucide-react'
+import { Plus, Edit2, Trash2, Eye, EyeOff, Search, X } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { formatDate } from '@/lib/utils'
 
@@ -29,6 +29,7 @@ const emptyForm = {
   content: '',
   excerpt: '',
   image: '',
+  images: [] as string[],
   category: 'Genel',
   published: false,
   publishedAt: '',
@@ -72,14 +73,15 @@ export default function AdminHaberlerPage() {
       content: '',
       excerpt: item.excerpt || '',
       image: item.image || '',
+      images: [],
       category: item.category,
       published: item.published,
       publishedAt: item.publishedAt ? item.publishedAt.split('T')[0] : '',
     })
-    // Fetch full content
+    // Fetch full content + images
     fetch(`/api/haberler/${item.id}`)
       .then(r => r.json())
-      .then(d => setForm(prev => ({ ...prev, content: d.content || '' })))
+      .then(d => setForm(prev => ({ ...prev, content: d.content || '', images: d.images || [] })))
     setModalOpen(true)
   }
 
@@ -284,11 +286,50 @@ export default function AdminHaberlerPage() {
             </div>
           </div>
           <div>
-            <label className="form-label">Görsel</label>
+            <label className="form-label">Kapak Görseli</label>
             <ImageUpload
               value={form.image}
               onChange={(url) => setForm({ ...form, image: url })}
             />
+          </div>
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <label className="form-label mb-0">Ek Görseller (Galeri)</label>
+              <button
+                type="button"
+                onClick={() => setForm({ ...form, images: [...form.images, ''] })}
+                className="text-xs text-primary font-medium hover:text-primary-800 flex items-center gap-1"
+              >
+                <Plus size={13} /> Görsel Ekle
+              </button>
+            </div>
+            {form.images.length === 0 && (
+              <p className="text-xs text-gray-400 py-2">Henüz ek görsel yok.</p>
+            )}
+            <div className="space-y-3">
+              {form.images.map((img, idx) => (
+                <div key={idx} className="flex items-start gap-2">
+                  <div className="flex-1">
+                    <ImageUpload
+                      value={img}
+                      onChange={(url) => {
+                        const updated = [...form.images]
+                        updated[idx] = url
+                        setForm({ ...form, images: updated })
+                      }}
+                      label={`Görsel ${idx + 1}`}
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setForm({ ...form, images: form.images.filter((_, i) => i !== idx) })}
+                    className="mt-1 p-1.5 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                  >
+                    <X size={16} />
+                  </button>
+                </div>
+              ))}
+            </div>
           </div>
           <div>
             <label className="form-label">İçerik *</label>
