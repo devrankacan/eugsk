@@ -12,10 +12,10 @@ export default async function HakkimizdaPage() {
     prisma.branch.count({ where: { active: true } }),
   ])
 
-  const branches = await prisma.branch.findMany({
-    where: { active: true },
-    orderBy: { order: 'asc' },
-  })
+  const [branches, boardMembers] = await Promise.all([
+    prisma.branch.findMany({ where: { active: true }, orderBy: { order: 'asc' } }),
+    prisma.boardMember.findMany({ where: { active: true }, orderBy: { order: 'asc' } }),
+  ])
 
   return (
     <>
@@ -80,6 +80,31 @@ export default async function HakkimizdaPage() {
                   </p>
                 </div>
               </div>
+
+              {/* Board Members */}
+              {boardMembers.length > 0 && (
+                <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-8">
+                  <h2 className="text-xl font-bold text-gray-900 mb-6">Yönetim Kurulumuz</h2>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-6">
+                    {boardMembers.map(member => (
+                      <div key={member.id} className="flex flex-col items-center text-center">
+                        <div className="w-24 h-24 rounded-full overflow-hidden bg-primary-50 border-2 border-primary/10 mb-3 shrink-0">
+                          {member.photo ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img src={member.photo} alt={member.name} className="w-full h-full object-cover" />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center text-3xl font-black text-primary/30">
+                              {member.name.charAt(0)}
+                            </div>
+                          )}
+                        </div>
+                        <p className="font-semibold text-gray-900 text-sm leading-tight">{member.name}</p>
+                        <p className="text-xs text-primary font-medium mt-0.5">{member.role}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {/* Branches */}
               {branches.length > 0 && (

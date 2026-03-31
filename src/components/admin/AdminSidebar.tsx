@@ -5,7 +5,7 @@ import { usePathname } from 'next/navigation'
 import { signOut } from 'next-auth/react'
 import {
   LayoutDashboard, Newspaper, Trophy, Users, Layers,
-  Image, Star, Settings, LogOut, ChevronRight, UserCog, X, Table2
+  Image, Star, Settings, LogOut, ChevronRight, UserCog, X, Table2, Crown
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -16,6 +16,7 @@ const navItems = [
   { href: '/admin/lig-tablolari', icon: Table2, label: 'Lig Tabloları' },
   { href: '/admin/takim', icon: Users, label: 'Takım Yönetimi' },
   { href: '/admin/branslar', icon: Layers, label: 'Branş Yönetimi' },
+  { href: '/admin/yonetim', icon: Crown, label: 'Yönetim Kurulu' },
   { href: '/admin/slider', icon: Image, label: 'Slider Yönetimi' },
   { href: '/admin/sponsorlar', icon: Star, label: 'Sponsorlar' },
   { href: '/admin/kullanicilar', icon: UserCog, label: 'Kullanıcılar' },

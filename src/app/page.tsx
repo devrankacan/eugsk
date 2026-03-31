@@ -70,25 +70,6 @@ export default async function HomePage() {
           link: s.link ?? undefined,
         }))} />
 
-        {/* Stats bar */}
-        <div className="bg-primary text-white py-4">
-          <div className="max-w-7xl mx-auto px-4">
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
-              {[
-                { value: branches.length, label: 'Branş' },
-                { value: players.length + '+', label: 'Sporcu' },
-                { value: matches.filter(m => m.status === 'FINISHED').length + '+', label: 'Maç' },
-                { value: '1985', label: 'Kuruluş' },
-              ].map((stat) => (
-                <div key={stat.label}>
-                  <div className="text-2xl md:text-3xl font-black text-secondary">{stat.value}</div>
-                  <div className="text-xs text-gray-300 uppercase tracking-wider">{stat.label}</div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-
         <NewsSection news={news as any} />
         <MatchCenter matches={matches as any} />
         {branches.length > 0 && players.length > 0 && (
