@@ -35,7 +35,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { homeTeam, awayTeam, homeScore, awayScore, date, venue, league, status, branchId } = body
+    const { homeTeam, awayTeam, homeLogo, awayLogo, homeScore, awayScore, date, venue, league, status, branchId } = body
 
     if (!homeTeam || !awayTeam || !date || !branchId) {
       return NextResponse.json({ error: 'Gerekli alanlar eksik' }, { status: 400 })
@@ -45,6 +45,8 @@ export async function POST(request: NextRequest) {
       data: {
         homeTeam,
         awayTeam,
+        homeLogo: homeLogo || null,
+        awayLogo: awayLogo || null,
         homeScore: homeScore !== undefined && homeScore !== '' ? parseInt(homeScore) : null,
         awayScore: awayScore !== undefined && awayScore !== '' ? parseInt(awayScore) : null,
         date: new Date(date),

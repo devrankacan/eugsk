@@ -2,13 +2,11 @@
 
 import { useState } from 'react'
 import { signIn } from 'next-auth/react'
-import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Eye, EyeOff, LogIn, Lock, Mail } from 'lucide-react'
 import toast from 'react-hot-toast'
 
 export default function AdminLoginPage() {
-  const router = useRouter()
   const [form, setForm] = useState({ email: '', password: '' })
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
@@ -29,8 +27,7 @@ export default function AdminLoginPage() {
       toast.error('E-posta veya şifre hatalı')
     } else {
       toast.success('Giriş başarılı!')
-      router.push('/admin')
-      router.refresh()
+      window.location.href = '/admin'
     }
   }
 

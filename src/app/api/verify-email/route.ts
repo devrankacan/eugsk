@@ -2,42 +2,39 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { sendWelcomeEmail } from '@/lib/email'
 
-export async function GET(request: NextRequest) {
+export async function POST(request: NextRequest) {
   try {
-    const { searchParams } = new URL(request.url)
-    const token = searchParams.get('token')
+    const { email, code } = await request.json()
 
-    if (!token) {
-      return NextResponse.json({ error: 'Token bulunamadı' }, { status: 400 })
+    if (!email || !code) {
+      return NextResponse.json({ error: 'E-posta ve kod gerekli' }, { status: 400 })
     }
 
-    const verificationToken = await prisma.verificationToken.findUnique({
-      where: { token },
+    const record = await prisma.verificationToken.findFirst({
+      where: { email, token: code },
     })
 
-    if (!verificationToken) {
-      return NextResponse.json({ error: 'Geçersiz token' }, { status: 400 })
+    if (!record) {
+      return NextResponse.json({ error: 'Geçersiz doğrulama kodu' }, { status: 400 })
     }
 
-    if (new Date() > verificationToken.expires) {
-      await prisma.verificationToken.delete({ where: { token } })
-      return NextResponse.json({ error: 'Token süresi dolmuş' }, { status: 400 })
+    if (record.expires < new Date()) {
+      await prisma.verificationToken.delete({ where: { id: record.id } })
+      return NextResponse.json({ error: 'Kodun süresi dolmuş. Yeniden kayıt olun.' }, { status: 400 })
     }
 
     const user = await prisma.user.update({
-      where: { email: verificationToken.email },
+      where: { email },
       data: { emailVerified: new Date() },
     })
 
-    await prisma.verificationToken.delete({ where: { token } })
+    await prisma.verificationToken.delete({ where: { id: record.id } })
 
-    sendWelcomeEmail(user.email, user.name || 'Üye').catch(console.error)
+    sendWelcomeEmail(email, user.name || 'Üye').catch(console.error)
 
-    return NextResponse.redirect(
-      new URL('/giris?verified=true', request.url)
-    )
+    return NextResponse.json({ message: 'E-posta başarıyla doğrulandı!' })
   } catch (error) {
-    console.error('Verification error:', error)
+    console.error('Verify error:', error)
     return NextResponse.json({ error: 'Doğrulama başarısız' }, { status: 500 })
   }
 }

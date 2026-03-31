@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import bcrypt from 'bcryptjs'
 import { prisma } from '@/lib/prisma'
-import { sendVerificationEmail } from '@/lib/email'
-import { v4 as uuidv4 } from 'uuid'
+import { sendVerificationEmail, generate6DigitCode } from '@/lib/email'
 
 export async function POST(request: NextRequest) {
   try {
@@ -24,7 +23,7 @@ export async function POST(request: NextRequest) {
 
     const hashedPassword = await bcrypt.hash(password, 12)
 
-    const user = await prisma.user.create({
+    await prisma.user.create({
       data: {
         name,
         email,
@@ -33,21 +32,23 @@ export async function POST(request: NextRequest) {
       },
     })
 
-    // Create verification token
-    const token = uuidv4()
+    // Delete any existing tokens for this email
+    await prisma.verificationToken.deleteMany({ where: { email } })
+
+    // Create 6-digit code (15 min expiry)
+    const code = generate6DigitCode()
     await prisma.verificationToken.create({
       data: {
         email,
-        token,
-        expires: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24h
+        token: code,
+        expires: new Date(Date.now() + 15 * 60 * 1000),
       },
     })
 
-    // Send verification email (non-blocking)
-    sendVerificationEmail(email, token).catch(console.error)
+    sendVerificationEmail(email, code).catch(console.error)
 
     return NextResponse.json(
-      { message: 'Kayıt başarılı! Lütfen e-posta adresinizi doğrulayın.' },
+      { message: 'Kayıt başarılı! Lütfen e-postanıza gelen 6 haneli kodu girin.' },
       { status: 201 }
     )
   } catch (error) {

@@ -35,7 +35,7 @@ export default function UyeOlPage() {
       if (!res.ok) {
         toast.error(data.error || 'Kayıt başarısız')
       } else {
-        setSuccess(true)
+        window.location.href = `/verify-email?email=${encodeURIComponent(form.email)}`
       }
     } catch {
       toast.error('Bir hata oluştu')

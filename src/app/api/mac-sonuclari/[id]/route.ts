@@ -11,13 +11,15 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
     }
 
     const body = await request.json()
-    const { homeTeam, awayTeam, homeScore, awayScore, date, venue, league, status, branchId } = body
+    const { homeTeam, awayTeam, homeLogo, awayLogo, homeScore, awayScore, date, venue, league, status, branchId } = body
 
     const match = await prisma.match.update({
       where: { id: params.id },
       data: {
         homeTeam,
         awayTeam,
+        homeLogo: homeLogo || null,
+        awayLogo: awayLogo || null,
         homeScore: homeScore !== undefined && homeScore !== '' ? parseInt(homeScore) : null,
         awayScore: awayScore !== undefined && awayScore !== '' ? parseInt(awayScore) : null,
         date: new Date(date),

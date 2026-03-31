@@ -33,7 +33,10 @@ export default function Header() {
   const [openDropdown, setOpenDropdown] = useState<string | null>(null)
   const [mobileBranslar, setMobileBranslar] = useState(false)
   const [siteSettings, setSiteSettings] = useState<any>(null)
+  const [searchOpen, setSearchOpen] = useState(false)
+  const [searchQuery, setSearchQuery] = useState('')
   const mobileRef = useRef<HTMLDivElement>(null)
+  const searchInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 10)
@@ -45,7 +48,6 @@ export default function Header() {
     fetch('/api/ayarlar').then(r => r.json()).then(d => setSiteSettings(d)).catch(() => {})
   }, [])
 
-  // Close mobile menu on outside click
   useEffect(() => {
     function handleClick(e: MouseEvent) {
       if (mobileOpen && mobileRef.current && !mobileRef.current.contains(e.target as Node)) {
@@ -56,15 +58,29 @@ export default function Header() {
     return () => document.removeEventListener('mousedown', handleClick)
   }, [mobileOpen])
 
-  // Prevent body scroll when mobile menu is open
   useEffect(() => {
-    document.body.style.overflow = mobileOpen ? 'hidden' : ''
+    document.body.style.overflow = (mobileOpen || searchOpen) ? 'hidden' : ''
     return () => { document.body.style.overflow = '' }
-  }, [mobileOpen])
+  }, [mobileOpen, searchOpen])
+
+  useEffect(() => {
+    if (searchOpen) {
+      setTimeout(() => searchInputRef.current?.focus(), 100)
+    }
+  }, [searchOpen])
+
+  const handleSearchSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (searchQuery.trim()) {
+      setSearchOpen(false)
+      setSearchQuery('')
+      window.location.href = `/arama?q=${encodeURIComponent(searchQuery.trim())}`
+    }
+  }
 
   return (
     <header className={cn('sticky top-0 z-40 transition-all duration-300', scrolled ? 'shadow-lg' : '')}>
-      {/* Top bar - desktop only */}
+      {/* Top bar */}
       <div className="bg-primary-900 text-xs text-primary-200 py-1.5 px-4 hidden md:flex justify-between items-center">
         <span>{siteSettings?.email || 'info@erzurumuniversiteligenclersk.org'}</span>
         <div className="flex gap-4">
@@ -131,7 +147,11 @@ export default function Header() {
 
             {/* Right actions */}
             <div className="flex items-center gap-1.5">
-              <button className="p-2 text-gray-300 hover:text-secondary rounded-lg hover:bg-white/10 transition-all hidden sm:flex">
+              <button
+                onClick={() => setSearchOpen(true)}
+                className="p-2 text-gray-300 hover:text-secondary rounded-lg hover:bg-white/10 transition-all hidden sm:flex"
+                aria-label="Ara"
+              >
                 <Search size={18} />
               </button>
 
@@ -172,6 +192,33 @@ export default function Header() {
         </div>
       </nav>
 
+      {/* Search overlay */}
+      {searchOpen && (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-start justify-center pt-24 px-4" onClick={() => setSearchOpen(false)}>
+          <div className="w-full max-w-2xl" onClick={e => e.stopPropagation()}>
+            <form onSubmit={handleSearchSubmit} className="relative">
+              <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-gray-400" size={22} />
+              <input
+                ref={searchInputRef}
+                type="text"
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+                placeholder="Haber, maç, branş ara..."
+                className="w-full pl-14 pr-14 py-5 text-lg rounded-2xl shadow-2xl border-0 outline-none bg-white text-gray-900 placeholder-gray-400"
+              />
+              <button
+                type="button"
+                onClick={() => setSearchOpen(false)}
+                className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 p-1"
+              >
+                <X size={22} />
+              </button>
+            </form>
+            <p className="text-center text-white/60 text-sm mt-3">Enter'a basarak ara · ESC ile kapat</p>
+          </div>
+        </div>
+      )}
+
       {/* Mobile menu overlay */}
       {mobileOpen && (
         <div className="fixed inset-0 bg-black/50 z-30 lg:hidden" onClick={() => setMobileOpen(false)} />
@@ -185,7 +232,6 @@ export default function Header() {
           mobileOpen ? 'translate-x-0' : 'translate-x-full'
         )}
       >
-        {/* Drawer header */}
         <div className="flex items-center justify-between p-4 border-b border-white/10">
           <div>
             <div className="font-bold text-white text-sm">Erzurum Üniversiteli</div>
@@ -196,7 +242,22 @@ export default function Header() {
           </button>
         </div>
 
-        {/* Drawer nav */}
+        {/* Search in mobile */}
+        <div className="px-4 py-3 border-b border-white/10">
+          <form onSubmit={e => { e.preventDefault(); if (searchQuery.trim()) { window.location.href = `/arama?q=${encodeURIComponent(searchQuery)}`; setMobileOpen(false) }}}>
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+                placeholder="Ara..."
+                className="w-full pl-9 pr-4 py-2 bg-white/10 rounded-lg text-sm text-white placeholder-gray-400 outline-none border border-white/20 focus:border-secondary transition-colors"
+              />
+            </div>
+          </form>
+        </div>
+
         <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-1">
           {navLinks.map(link => (
             <div key={link.href}>
@@ -212,12 +273,8 @@ export default function Header() {
                   {mobileBranslar && (
                     <div className="ml-3 mt-1 space-y-1 border-l-2 border-white/10 pl-3">
                       {link.children.map(child => (
-                        <Link
-                          key={child.href}
-                          href={child.href}
-                          onClick={() => setMobileOpen(false)}
-                          className="block px-3 py-2.5 rounded-lg text-sm text-gray-300 hover:text-secondary hover:bg-white/10 transition-all"
-                        >
+                        <Link key={child.href} href={child.href} onClick={() => setMobileOpen(false)}
+                          className="block px-3 py-2.5 rounded-lg text-sm text-gray-300 hover:text-secondary hover:bg-white/10 transition-all">
                           {child.label}
                         </Link>
                       ))}
@@ -225,11 +282,8 @@ export default function Header() {
                   )}
                 </>
               ) : (
-                <Link
-                  href={link.href}
-                  onClick={() => setMobileOpen(false)}
-                  className="block px-4 py-3 rounded-lg text-sm font-medium text-gray-200 hover:bg-white/10 hover:text-secondary transition-all"
-                >
+                <Link href={link.href} onClick={() => setMobileOpen(false)}
+                  className="block px-4 py-3 rounded-lg text-sm font-medium text-gray-200 hover:bg-white/10 hover:text-secondary transition-all">
                   {link.label}
                 </Link>
               )}
@@ -237,21 +291,15 @@ export default function Header() {
           ))}
         </nav>
 
-        {/* Drawer footer */}
         <div className="p-4 border-t border-white/10">
           {session ? (
-            <button
-              onClick={() => { signOut({ callbackUrl: '/' }); setMobileOpen(false) }}
-              className="w-full flex items-center gap-2 px-4 py-3 rounded-lg text-sm text-red-300 hover:bg-red-500/20 transition-all"
-            >
+            <button onClick={() => { signOut({ callbackUrl: '/' }); setMobileOpen(false) }}
+              className="w-full flex items-center gap-2 px-4 py-3 rounded-lg text-sm text-red-300 hover:bg-red-500/20 transition-all">
               <LogOut size={16} /> Çıkış Yap
             </button>
           ) : (
-            <Link
-              href="/giris"
-              onClick={() => setMobileOpen(false)}
-              className="flex items-center justify-center gap-2 w-full px-4 py-3 bg-secondary text-primary rounded-lg text-sm font-semibold hover:bg-secondary-600 transition-all"
-            >
+            <Link href="/giris" onClick={() => setMobileOpen(false)}
+              className="flex items-center justify-center gap-2 w-full px-4 py-3 bg-secondary text-primary rounded-lg text-sm font-semibold hover:bg-secondary-600 transition-all">
               <User size={16} /> Giriş Yap
             </Link>
           )}

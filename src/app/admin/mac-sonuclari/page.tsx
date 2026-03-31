@@ -7,11 +7,14 @@ import Button from '@/components/ui/Button'
 import { Plus, Edit2, Trash2 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { formatDateTime } from '@/lib/utils'
+import ImageUpload from '@/components/ui/ImageUpload'
 
 interface Match {
   id: string
   homeTeam: string
   awayTeam: string
+  homeLogo?: string
+  awayLogo?: string
   homeScore?: number
   awayScore?: number
   date: string
@@ -43,6 +46,8 @@ const statusColors: Record<string, string> = {
 const emptyForm = {
   homeTeam: 'Erzurum Üniversiteli Gençler SK',
   awayTeam: '',
+  homeLogo: '',
+  awayLogo: '',
   homeScore: '',
   awayScore: '',
   date: '',
@@ -95,6 +100,8 @@ export default function AdminMacSonuclariPage() {
     setForm({
       homeTeam: item.homeTeam,
       awayTeam: item.awayTeam,
+      homeLogo: item.homeLogo || '',
+      awayLogo: item.awayLogo || '',
       homeScore: item.homeScore?.toString() || '',
       awayScore: item.awayScore?.toString() || '',
       date: item.date ? new Date(item.date).toISOString().slice(0, 16) : '',
@@ -215,10 +222,18 @@ export default function AdminMacSonuclariPage() {
             <div>
               <label className="form-label">Ev Sahibi *</label>
               <input type="text" value={form.homeTeam} onChange={e => setForm({ ...form, homeTeam: e.target.value })} className="form-input" />
+              <div className="mt-2">
+                <label className="form-label text-xs">Ev Sahibi Logo</label>
+                <ImageUpload value={form.homeLogo} onChange={v => setForm({ ...form, homeLogo: v })} label="Logo Yükle" />
+              </div>
             </div>
             <div>
               <label className="form-label">Misafir *</label>
               <input type="text" value={form.awayTeam} onChange={e => setForm({ ...form, awayTeam: e.target.value })} className="form-input" placeholder="Rakip takım" />
+              <div className="mt-2">
+                <label className="form-label text-xs">Misafir Logo</label>
+                <ImageUpload value={form.awayLogo} onChange={v => setForm({ ...form, awayLogo: v })} label="Logo Yükle" />
+              </div>
             </div>
           </div>
           <div className="grid grid-cols-2 gap-4">

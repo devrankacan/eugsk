@@ -20,6 +20,12 @@ enum MatchStatus {
   CANCELLED
 }
 
+enum TableType {
+  LEAGUE
+  TOURNAMENT
+  GROUP
+}
+
 enum SponsorTier {
   MAIN
   GOLD
@@ -79,16 +85,33 @@ model Branch {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  matches Match[]
-  players Player[]
+  matches        Match[]
+  players        Player[]
+  ageCategories  AgeCategory[]
+  leagueTables   LeagueTable[]
 
   @@map("branches")
+}
+
+model AgeCategory {
+  id       String  @id @default(cuid())
+  name     String
+  branchId String
+  branch   Branch  @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  order    Int     @default(0)
+  active   Boolean @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("age_categories")
 }
 
 model Match {
   id        String      @id @default(cuid())
   homeTeam  String
   awayTeam  String
+  homeLogo  String?
+  awayLogo  String?
   homeScore Int?
   awayScore Int?
   date      DateTime
@@ -101,6 +124,42 @@ model Match {
   updatedAt DateTime    @updatedAt
 
   @@map("matches")
+}
+
+model LeagueTable {
+  id        String    @id @default(cuid())
+  name      String
+  season    String?
+  type      TableType @default(LEAGUE)
+  branchId  String
+  branch    Branch    @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  rows      LeagueTableRow[]
+  active    Boolean   @default(true)
+  order     Int       @default(0)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  @@map("league_tables")
+}
+
+model LeagueTableRow {
+  id           String      @id @default(cuid())
+  tableId      String
+  table        LeagueTable @relation(fields: [tableId], references: [id], onDelete: Cascade)
+  teamName     String
+  teamLogo     String?
+  played       Int         @default(0)
+  won          Int         @default(0)
+  drawn        Int         @default(0)
+  lost         Int         @default(0)
+  goalsFor     Int         @default(0)
+  goalsAgainst Int         @default(0)
+  points       Int         @default(0)
+  order        Int         @default(0)
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  @@map("league_table_rows")
 }
 
 model Player {

@@ -4,8 +4,10 @@ import { useState, useEffect } from 'react'
 import AdminHeader from '@/components/admin/AdminHeader'
 import Modal from '@/components/ui/Modal'
 import Button from '@/components/ui/Button'
-import { Plus, Edit2, Trash2, Users, Trophy } from 'lucide-react'
+import { Plus, Edit2, Trash2, Users, Trophy, Tag, ChevronDown, ChevronUp } from 'lucide-react'
 import toast from 'react-hot-toast'
+
+interface AgeCategory { id: string; name: string; order: number; active: boolean }
 
 interface Branch {
   id: string
@@ -16,6 +18,7 @@ interface Branch {
   order: number
   active: boolean
   _count?: { players: number; matches: number }
+  ageCategories?: AgeCategory[]
 }
 
 const emptyForm = { name: '', description: '', icon: '', order: 0, active: true }
@@ -29,6 +32,12 @@ export default function AdminBranslarPage() {
   const [saving, setSaving] = useState(false)
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null)
 
+  // Age category state
+  const [expandedBranch, setExpandedBranch] = useState<string | null>(null)
+  const [ageCats, setAgeCats] = useState<Record<string, AgeCategory[]>>({})
+  const [newCatName, setNewCatName] = useState<Record<string, string>>({})
+  const [savingCat, setSavingCat] = useState(false)
+
   useEffect(() => { fetchBranches() }, [])
 
   async function fetchBranches() {
@@ -39,6 +48,49 @@ export default function AdminBranslarPage() {
       setBranches(Array.isArray(data) ? data : [])
     } catch { toast.error('Branşlar yüklenemedi') }
     finally { setLoading(false) }
+  }
+
+  async function loadAgeCats(branchId: string) {
+    try {
+      const res = await fetch(`/api/yas-kategorileri?branchId=${branchId}`)
+      const data = await res.json()
+      setAgeCats(prev => ({ ...prev, [branchId]: Array.isArray(data) ? data : [] }))
+    } catch {}
+  }
+
+  function toggleExpand(branchId: string) {
+    if (expandedBranch === branchId) {
+      setExpandedBranch(null)
+    } else {
+      setExpandedBranch(branchId)
+      if (!ageCats[branchId]) loadAgeCats(branchId)
+    }
+  }
+
+  async function addAgeCat(branchId: string) {
+    const name = (newCatName[branchId] || '').trim()
+    if (!name) { toast.error('Kategori adı gerekli'); return }
+    setSavingCat(true)
+    try {
+      const res = await fetch('/api/yas-kategorileri', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, branchId, order: (ageCats[branchId]?.length || 0) }),
+      })
+      if (!res.ok) throw new Error()
+      toast.success('Kategori eklendi')
+      setNewCatName(prev => ({ ...prev, [branchId]: '' }))
+      await loadAgeCats(branchId)
+    } catch { toast.error('Kategori eklenemedi') }
+    finally { setSavingCat(false) }
+  }
+
+  async function deleteAgeCat(branchId: string, catId: string) {
+    try {
+      await fetch(`/api/yas-kategorileri/${catId}`, { method: 'DELETE' })
+      toast.success('Kategori silindi')
+      loadAgeCats(branchId)
+    } catch { toast.error('Silinemedi') }
   }
 
   function openCreate() {
@@ -89,20 +141,38 @@ export default function AdminBranslarPage() {
         {loading ? (
           <div className="text-center py-12 text-gray-400">Yükleniyor...</div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="space-y-3">
             {branches.map(b => (
-              <div key={b.id} className="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
-                <div className="flex items-center justify-between mb-3">
+              <div key={b.id} className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+                <div className="p-5 flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <span className="text-3xl">{b.icon || '🏆'}</span>
+                    <div className="w-10 h-10 rounded-lg bg-primary-50 flex items-center justify-center text-xl font-bold text-primary">
+                      {b.icon || b.name.charAt(0)}
+                    </div>
                     <div>
                       <h3 className="font-bold text-gray-900">{b.name}</h3>
-                      <span className={`badge text-xs ${b.active ? 'badge-green' : 'bg-gray-100 text-gray-500'}`}>
-                        {b.active ? 'Aktif' : 'Pasif'}
-                      </span>
+                      <div className="flex items-center gap-3 mt-0.5">
+                        <span className={`badge text-xs ${b.active ? 'badge-green' : 'bg-gray-100 text-gray-500'}`}>
+                          {b.active ? 'Aktif' : 'Pasif'}
+                        </span>
+                        {b._count && (
+                          <>
+                            <span className="flex items-center gap-1 text-xs text-gray-400"><Users size={11} />{b._count.players}</span>
+                            <span className="flex items-center gap-1 text-xs text-gray-400"><Trophy size={11} />{b._count.matches}</span>
+                          </>
+                        )}
+                      </div>
                     </div>
                   </div>
-                  <div className="flex gap-1">
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={() => toggleExpand(b.id)}
+                      className="p-1.5 rounded-lg text-gray-400 hover:text-primary hover:bg-primary-50 transition-all flex items-center gap-1 text-xs"
+                      title="Yaş Kategorileri"
+                    >
+                      <Tag size={14} />
+                      {expandedBranch === b.id ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                    </button>
                     <button onClick={() => openEdit(b)} className="p-1.5 rounded-lg text-gray-400 hover:text-primary hover:bg-primary-50 transition-all">
                       <Edit2 size={15} />
                     </button>
@@ -111,11 +181,42 @@ export default function AdminBranslarPage() {
                     </button>
                   </div>
                 </div>
-                {b.description && <p className="text-sm text-gray-500 mb-3 line-clamp-2">{b.description}</p>}
-                {b._count && (
-                  <div className="flex items-center gap-4 text-xs text-gray-400 pt-3 border-t border-gray-100">
-                    <span className="flex items-center gap-1"><Users size={12} className="text-secondary" />{b._count.players} sporcu</span>
-                    <span className="flex items-center gap-1"><Trophy size={12} className="text-secondary" />{b._count.matches} maç</span>
+
+                {/* Age categories section */}
+                {expandedBranch === b.id && (
+                  <div className="border-t border-gray-100 bg-gray-50 px-5 py-4">
+                    <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Yaş Kategorileri</h4>
+                    <div className="flex flex-wrap gap-2 mb-3">
+                      {(ageCats[b.id] || []).length === 0 ? (
+                        <span className="text-xs text-gray-400">Henüz kategori eklenmemiş</span>
+                      ) : (
+                        (ageCats[b.id] || []).map(cat => (
+                          <div key={cat.id} className="flex items-center gap-1.5 bg-white border border-gray-200 rounded-full px-3 py-1 text-sm">
+                            <span className="text-gray-700 font-medium">{cat.name}</span>
+                            <button onClick={() => deleteAgeCat(b.id, cat.id)} className="text-gray-300 hover:text-red-500 transition-colors">
+                              <Trash2 size={12} />
+                            </button>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        placeholder="U8, U10, A Takımı..."
+                        value={newCatName[b.id] || ''}
+                        onChange={e => setNewCatName(prev => ({ ...prev, [b.id]: e.target.value }))}
+                        onKeyDown={e => e.key === 'Enter' && addAgeCat(b.id)}
+                        className="flex-1 px-3 py-1.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-primary"
+                      />
+                      <button
+                        onClick={() => addAgeCat(b.id)}
+                        disabled={savingCat}
+                        className="px-3 py-1.5 bg-primary text-white rounded-lg text-sm font-medium hover:bg-primary-700 transition-colors flex items-center gap-1"
+                      >
+                        <Plus size={14} /> Ekle
+                      </button>
+                    </div>
                   </div>
                 )}
               </div>
