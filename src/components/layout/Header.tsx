@@ -94,18 +94,19 @@ export default function Header() {
         <div className="max-w-7xl mx-auto px-4">
           <div className="flex items-center justify-between h-16">
             {/* Logo */}
-            <Link href="/" className="flex items-center gap-2.5 shrink-0" onClick={() => setMobileOpen(false)}>
+            <Link href="/" className="flex items-center gap-3 shrink-0" onClick={() => setMobileOpen(false)}>
               {siteSettings?.logo ? (
-                <div className="relative w-12 h-12 rounded-full overflow-hidden bg-white/10 shrink-0">
-                  <Image src={siteSettings.logo} alt="Logo" fill className="object-contain p-0.5" />
-                </div>
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={siteSettings.logo} alt="Logo" className="h-11 w-auto max-w-[200px] object-contain shrink-0" />
               ) : (
-                <div className="w-12 h-12 bg-secondary rounded-full flex items-center justify-center text-primary font-black text-lg shrink-0">E</div>
+                <>
+                  <div className="w-10 h-10 bg-secondary rounded-lg flex items-center justify-center text-primary font-black text-lg shrink-0">E</div>
+                  <div className="hidden xs:block">
+                    <div className="font-bold text-sm leading-tight text-white">Erzurum Üniversiteli</div>
+                    <div className="text-secondary font-black text-xs tracking-wider">GENÇLER SK</div>
+                  </div>
+                </>
               )}
-              <div className="hidden xs:block">
-                <div className="font-bold text-sm leading-tight text-white">Erzurum Üniversiteli</div>
-                <div className="text-secondary font-black text-xs tracking-wider">GENÇLER SK</div>
-              </div>
             </Link>
 
             {/* Desktop nav */}
