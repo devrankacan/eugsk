@@ -2,12 +2,10 @@ import { prisma } from '@/lib/prisma'
 import Header from '@/components/layout/Header'
 import Footer from '@/components/layout/Footer'
 import Link from 'next/link'
-
-export const dynamic = 'force-dynamic'
 import { Calendar, Eye } from 'lucide-react'
 import { formatDate } from '@/lib/utils'
 
-export const revalidate = 60
+export const dynamic = 'force-dynamic'
 
 const CATEGORIES = ['Tümü', 'Futbol', 'Basketbol', 'Voleybol', 'Atletizm', 'Genel']
 
@@ -76,7 +74,7 @@ export default async function HaberlerPage({
                 <article key={item.id} className="card group">
                   <div className="relative h-48 bg-gradient-to-br from-primary-100 to-primary-200 overflow-hidden">
                     {item.image ? (
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      // eslint-disable-next-line @next/next/no-img-element
                       <img src={item.image} alt={item.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
                     ) : (
                       <div className="absolute inset-0 flex items-center justify-center text-5xl opacity-20">
