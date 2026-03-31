@@ -2,7 +2,6 @@
 
 import { useState, useRef } from 'react'
 import { Upload, X, Image as ImageIcon } from 'lucide-react'
-import Image from 'next/image'
 import toast from 'react-hot-toast'
 
 interface ImageUploadProps {
@@ -49,7 +48,8 @@ export default function ImageUpload({ value, onChange, label = 'Görsel Yükle' 
     <div className="space-y-2">
       {value && (
         <div className="relative w-full h-48 rounded-lg overflow-hidden border border-gray-200 bg-gray-50">
-          <Image src={value} alt="Yüklenen görsel" fill className="object-cover" />
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={value} alt="Yüklenen görsel" className="w-full h-full object-contain" />
           <button
             type="button"
             onClick={() => onChange('')}
