@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import Header from '@/components/layout/Header'
 import Footer from '@/components/layout/Footer'
-import { Mail, Phone, MapPin, Facebook, Twitter, Instagram, Youtube, Send } from 'lucide-react'
+import { Mail, Phone, MapPin, Facebook, Instagram, Youtube, Send } from 'lucide-react'
 import toast from 'react-hot-toast'
 
 export default function IletisimPage() {
@@ -76,7 +76,6 @@ export default function IletisimPage() {
                 <div className="flex gap-3">
                   {[
                     { icon: Facebook, href: 'https://facebook.com/eugsk', label: 'Facebook' },
-                    { icon: Twitter, href: 'https://twitter.com/eugsk', label: 'Twitter' },
                     { icon: Instagram, href: 'https://instagram.com/eugsk', label: 'Instagram' },
                     { icon: Youtube, href: 'https://youtube.com/eugsk', label: 'YouTube' },
                   ].map(({ icon: Icon, href, label }) => (

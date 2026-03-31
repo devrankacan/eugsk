@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import Image from 'next/image'
 import { Mail, Phone, MapPin, Facebook, Instagram, Youtube, Send } from 'lucide-react'
 import toast from 'react-hot-toast'
 
@@ -30,20 +29,16 @@ export default function Footer() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
           {/* Club info */}
           <div>
-            <div className="flex items-center gap-3 mb-4">
+            <div className="mb-4">
               {settings?.logo ? (
-                <div className="relative w-12 h-12">
-                  <Image src={settings.logo} alt="Logo" fill className="object-contain" />
-                </div>
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={settings.logo} alt="Logo" className="h-20 w-auto object-contain" />
               ) : (
-                <div className="w-12 h-12 bg-secondary rounded-full flex items-center justify-center text-primary font-black text-xl">
-                  E
+                <div>
+                  <div className="font-bold text-white text-base">Erzurum Üniversiteli</div>
+                  <div className="text-secondary font-black text-sm tracking-wider">GENÇLER SK</div>
                 </div>
               )}
-              <div>
-                <div className="font-bold text-white text-sm">Erzurum Üniversiteli</div>
-                <div className="text-secondary font-black text-xs tracking-wider">GENÇLER SK</div>
-              </div>
             </div>
             <p className="text-sm text-gray-400 leading-relaxed mb-4">
               {settings?.description || 'Atatürk Üniversitesi bünyesinde faaliyet gösteren çok branşlı spor kulübü.'}
