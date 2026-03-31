@@ -1,7 +1,6 @@
 import { prisma } from '@/lib/prisma'
 import Header from '@/components/layout/Header'
 import Footer from '@/components/layout/Footer'
-import Image from 'next/image'
 import { formatDateTime } from '@/lib/utils'
 import { Trophy, Clock, MapPin, Shield } from 'lucide-react'
 
@@ -24,9 +23,8 @@ const tableTypeLabel: Record<string, string> = {
 function TeamLogo({ logo, name, size = 40 }: { logo?: string | null; name: string; size?: number }) {
   if (logo) {
     return (
-      <div className="relative shrink-0" style={{ width: size, height: size }}>
-        <Image src={logo} alt={name} fill className="object-contain" />
-      </div>
+      // eslint-disable-next-line @next/next/no-img-element
+      <img src={logo} alt={name} className="shrink-0 object-contain" style={{ width: size, height: size }} />
     )
   }
   return (
@@ -217,14 +215,14 @@ function LeagueTableCard({ table }: { table: any }) {
         <table className="w-full text-sm">
           <thead>
             <tr className="bg-gray-50 border-b border-gray-100">
-              <th className="text-left px-4 py-2.5 text-xs font-semibold text-gray-400 w-8">#</th>
+              <th className="text-left px-3 py-2.5 text-xs font-semibold text-gray-400 w-8">#</th>
               <th className="text-left px-2 py-2.5 text-xs font-semibold text-gray-400">Takım</th>
-              <th className="text-center px-2 py-2.5 text-xs font-semibold text-gray-400 hidden sm:table-cell">O</th>
-              <th className="text-center px-2 py-2.5 text-xs font-semibold text-gray-400 hidden sm:table-cell">G</th>
-              <th className="text-center px-2 py-2.5 text-xs font-semibold text-gray-400 hidden sm:table-cell">B</th>
-              <th className="text-center px-2 py-2.5 text-xs font-semibold text-gray-400 hidden sm:table-cell">M</th>
-              <th className="text-center px-2 py-2.5 text-xs font-semibold text-gray-400 hidden md:table-cell">AG</th>
-              <th className="text-center px-2 py-2.5 text-xs font-semibold text-gray-400 hidden md:table-cell">AV</th>
+              <th className="text-center px-2 py-2.5 text-xs font-semibold text-gray-400">O</th>
+              <th className="text-center px-2 py-2.5 text-xs font-semibold text-gray-400">G</th>
+              <th className="text-center px-2 py-2.5 text-xs font-semibold text-gray-400">B</th>
+              <th className="text-center px-2 py-2.5 text-xs font-semibold text-gray-400">M</th>
+              <th className="text-center px-2 py-2.5 text-xs font-semibold text-gray-400 hidden sm:table-cell">AG</th>
+              <th className="text-center px-2 py-2.5 text-xs font-semibold text-gray-400 hidden sm:table-cell">AV</th>
               <th className="text-center px-3 py-2.5 text-xs font-bold text-primary">P</th>
             </tr>
           </thead>
@@ -243,21 +241,20 @@ function LeagueTableCard({ table }: { table: any }) {
                   <td className="px-2 py-2.5">
                     <div className="flex items-center gap-2">
                       {row.teamLogo ? (
-                        <div className="relative w-6 h-6 shrink-0">
-                          <Image src={row.teamLogo} alt={row.teamName} fill className="object-contain" />
-                        </div>
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={row.teamLogo} alt={row.teamName} className="w-6 h-6 object-contain shrink-0" />
                       ) : (
                         <Shield size={16} className="text-gray-300 shrink-0" />
                       )}
                       <span className="font-medium text-gray-900 text-sm">{row.teamName}</span>
                     </div>
                   </td>
-                  <td className="text-center px-2 py-2.5 text-gray-600 hidden sm:table-cell">{row.played}</td>
-                  <td className="text-center px-2 py-2.5 text-green-600 font-medium hidden sm:table-cell">{row.won}</td>
-                  <td className="text-center px-2 py-2.5 text-gray-500 hidden sm:table-cell">{row.drawn}</td>
-                  <td className="text-center px-2 py-2.5 text-red-500 hidden sm:table-cell">{row.lost}</td>
-                  <td className="text-center px-2 py-2.5 text-gray-500 hidden md:table-cell">{row.goalsFor}</td>
-                  <td className="text-center px-2 py-2.5 text-gray-500 hidden md:table-cell">
+                  <td className="text-center px-2 py-2.5 text-gray-600">{row.played}</td>
+                  <td className="text-center px-2 py-2.5 text-green-600 font-medium">{row.won}</td>
+                  <td className="text-center px-2 py-2.5 text-gray-500">{row.drawn}</td>
+                  <td className="text-center px-2 py-2.5 text-red-500">{row.lost}</td>
+                  <td className="text-center px-2 py-2.5 text-gray-500 hidden sm:table-cell">{row.goalsFor}</td>
+                  <td className="text-center px-2 py-2.5 text-gray-500 hidden sm:table-cell">
                     <span className={av >= 0 ? 'text-green-600' : 'text-red-500'}>{av >= 0 ? '+' : ''}{av}</span>
                   </td>
                   <td className="text-center px-3 py-2.5">

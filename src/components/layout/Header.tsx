@@ -32,7 +32,12 @@ export default function Header() {
   const [scrolled, setScrolled] = useState(false)
   const [openDropdown, setOpenDropdown] = useState<string | null>(null)
   const [mobileBranslar, setMobileBranslar] = useState(false)
-  const [siteSettings, setSiteSettings] = useState<any>(null)
+  const [siteSettings, setSiteSettings] = useState<any>(() => {
+    if (typeof window !== 'undefined') {
+      try { return JSON.parse(localStorage.getItem('siteSettings') || 'null') } catch { return null }
+    }
+    return null
+  })
   const [searchOpen, setSearchOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const mobileRef = useRef<HTMLDivElement>(null)
@@ -45,7 +50,10 @@ export default function Header() {
   }, [])
 
   useEffect(() => {
-    fetch('/api/ayarlar').then(r => r.json()).then(d => setSiteSettings(d)).catch(() => {})
+    fetch('/api/ayarlar').then(r => r.json()).then(d => {
+      setSiteSettings(d)
+      try { localStorage.setItem('siteSettings', JSON.stringify(d)) } catch {}
+    }).catch(() => {})
   }, [])
 
   useEffect(() => {
