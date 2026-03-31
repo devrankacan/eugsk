@@ -97,7 +97,7 @@ export default function Header() {
             <Link href="/" className="flex items-center gap-3 shrink-0" onClick={() => setMobileOpen(false)}>
               {siteSettings?.logo ? (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={siteSettings.logo} alt="Logo" className="h-11 w-auto max-w-[200px] object-contain shrink-0" />
+                <img src={siteSettings.logo} alt="Logo" className="h-14 w-auto max-w-[240px] object-contain shrink-0" />
               ) : (
                 <>
                   <div className="w-10 h-10 bg-secondary rounded-lg flex items-center justify-center text-primary font-black text-lg shrink-0">E</div>
