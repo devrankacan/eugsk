@@ -96,11 +96,11 @@ export default function Header() {
             {/* Logo */}
             <Link href="/" className="flex items-center gap-2.5 shrink-0" onClick={() => setMobileOpen(false)}>
               {siteSettings?.logo ? (
-                <div className="relative w-10 h-10">
-                  <Image src={siteSettings.logo} alt="Logo" fill className="object-contain rounded-full" />
+                <div className="relative w-12 h-12 rounded-full overflow-hidden bg-white/10 shrink-0">
+                  <Image src={siteSettings.logo} alt="Logo" fill className="object-contain p-0.5" />
                 </div>
               ) : (
-                <div className="w-10 h-10 bg-secondary rounded-full flex items-center justify-center text-primary font-black text-lg shrink-0">E</div>
+                <div className="w-12 h-12 bg-secondary rounded-full flex items-center justify-center text-primary font-black text-lg shrink-0">E</div>
               )}
               <div className="hidden xs:block">
                 <div className="font-bold text-sm leading-tight text-white">Erzurum Üniversiteli</div>
