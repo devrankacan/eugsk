@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { useSession, signOut } from 'next-auth/react'
-import { Menu, X, ChevronDown, User, LogOut, Settings, Search } from 'lucide-react'
+import { Menu, X, ChevronDown, User, LogOut, Settings, Search, Radio } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 const staticNavLinks = [
@@ -151,6 +151,15 @@ export default function Header() {
 
               <Link href="/iletisim" className="px-3 py-2 rounded text-sm font-medium text-gray-200 hover:text-secondary hover:bg-white/10 transition-all">
                 İletişim
+              </Link>
+
+              {/* Maç Yayını — highlighted */}
+              <Link
+                href="/canli-yayin"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-600 hover:bg-red-700 text-white text-sm font-bold transition-all ml-1 shadow-lg"
+              >
+                <Radio size={13} className="shrink-0" />
+                <span>Maç Yayını</span>
               </Link>
             </div>
 
@@ -301,6 +310,11 @@ export default function Header() {
           <Link href="/iletisim" onClick={() => setMobileOpen(false)}
             className="block px-4 py-3 rounded-lg text-sm font-medium text-gray-200 hover:bg-white/10 hover:text-secondary transition-all">
             İletişim
+          </Link>
+
+          <Link href="/canli-yayin" onClick={() => setMobileOpen(false)}
+            className="flex items-center gap-2 px-4 py-3 rounded-lg text-sm font-bold text-white bg-red-600 hover:bg-red-700 transition-all">
+            <Radio size={15} /> Maç Yayını
           </Link>
         </nav>
 

@@ -12,6 +12,20 @@ const handle = app.getRequestHandler()
 // In-memory live state
 let liveRoom = null
 
+function getRoomStatus() {
+  if (!liveRoom) return { isLive: false }
+  return {
+    isLive: true,
+    matchInfo: liveRoom.matchInfo,
+    scores: liveRoom.scores,
+    isHalfTime: liveRoom.isHalfTime,
+    homeColor: liveRoom.homeColor,
+    awayColor: liveRoom.awayColor,
+    matchStartTime: liveRoom.matchStartTime,
+    timerRunning: liveRoom.timerRunning,
+  }
+}
+
 app.prepare().then(() => {
   const httpServer = createServer(async (req, res) => {
     try {
@@ -29,10 +43,7 @@ app.prepare().then(() => {
 
   io.on('connection', (socket) => {
     // Send current live status immediately on connect
-    socket.emit('live-status', liveRoom
-      ? { isLive: true, matchInfo: liveRoom.matchInfo, scores: liveRoom.scores }
-      : { isLive: false }
-    )
+    socket.emit('live-status', getRoomStatus())
 
     // ── BROADCASTER ──────────────────────────────────────
     socket.on('start-broadcast', ({ matchInfo }) => {
@@ -41,11 +52,16 @@ app.prepare().then(() => {
         viewers: new Map(),
         matchInfo: matchInfo || {},
         scores: { home: 0, away: 0 },
+        isHalfTime: false,
+        homeColor: '#1e3a8a',
+        awayColor: '#7f1d1d',
+        matchStartTime: null,
+        timerRunning: false,
       }
       socket.isBroadcaster = true
       socket.join('live')
       console.log('▶ Broadcast started')
-      io.emit('live-status', { isLive: true, matchInfo: liveRoom.matchInfo, scores: liveRoom.scores })
+      io.emit('live-status', getRoomStatus())
     })
 
     socket.on('update-match', (matchInfo) => {
@@ -58,6 +74,37 @@ app.prepare().then(() => {
       if (!liveRoom || liveRoom.broadcasterId !== socket.id) return
       liveRoom.scores = scores
       io.to('live').emit('score-updated', scores)
+    })
+
+    socket.on('update-colors', ({ homeColor, awayColor }) => {
+      if (!liveRoom || liveRoom.broadcasterId !== socket.id) return
+      liveRoom.homeColor = homeColor
+      liveRoom.awayColor = awayColor
+      io.to('live').emit('colors-updated', { homeColor, awayColor })
+    })
+
+    socket.on('toggle-half-time', (isHalfTime) => {
+      if (!liveRoom || liveRoom.broadcasterId !== socket.id) return
+      liveRoom.isHalfTime = isHalfTime
+      io.to('live').emit('half-time-updated', isHalfTime)
+    })
+
+    socket.on('send-kj', (kjEvent) => {
+      if (!liveRoom || liveRoom.broadcasterId !== socket.id) return
+      io.to('live').emit('kj-event', kjEvent)
+    })
+
+    socket.on('start-timer', () => {
+      if (!liveRoom || liveRoom.broadcasterId !== socket.id) return
+      liveRoom.matchStartTime = Date.now()
+      liveRoom.timerRunning = true
+      io.to('live').emit('timer-updated', { matchStartTime: liveRoom.matchStartTime, timerRunning: true })
+    })
+
+    socket.on('stop-timer', () => {
+      if (!liveRoom || liveRoom.broadcasterId !== socket.id) return
+      liveRoom.timerRunning = false
+      io.to('live').emit('timer-updated', { matchStartTime: liveRoom.matchStartTime, timerRunning: false })
     })
 
     socket.on('stop-broadcast', () => {
@@ -74,7 +121,9 @@ app.prepare().then(() => {
       liveRoom.viewers.set(socket.id, true)
       socket.emit('match-updated', liveRoom.matchInfo)
       socket.emit('score-updated', liveRoom.scores)
-      // Tell broadcaster a new viewer is ready for an offer
+      socket.emit('colors-updated', { homeColor: liveRoom.homeColor, awayColor: liveRoom.awayColor })
+      socket.emit('half-time-updated', liveRoom.isHalfTime)
+      socket.emit('timer-updated', { matchStartTime: liveRoom.matchStartTime, timerRunning: liveRoom.timerRunning })
       io.to(liveRoom.broadcasterId).emit('viewer-joined', { viewerId: socket.id })
       io.to(liveRoom.broadcasterId).emit('viewer-count', liveRoom.viewers.size)
     })
