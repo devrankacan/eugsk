@@ -30,6 +30,7 @@ const emptyForm = {
   excerpt: '',
   image: '',
   images: [] as string[],
+  sourceUrl: '',
   category: 'Genel',
   published: false,
   publishedAt: '',
@@ -74,6 +75,7 @@ export default function AdminHaberlerPage() {
       excerpt: item.excerpt || '',
       image: item.image || '',
       images: [],
+      sourceUrl: '',
       category: item.category,
       published: item.published,
       publishedAt: item.publishedAt ? item.publishedAt.split('T')[0] : '',
@@ -81,7 +83,7 @@ export default function AdminHaberlerPage() {
     // Fetch full content + images
     fetch(`/api/haberler/${item.id}`)
       .then(r => r.json())
-      .then(d => setForm(prev => ({ ...prev, content: d.content || '', images: d.images || [] })))
+      .then(d => setForm(prev => ({ ...prev, content: d.content || '', images: d.images || [], sourceUrl: d.sourceUrl || '' })))
     setModalOpen(true)
   }
 
@@ -262,6 +264,16 @@ export default function AdminHaberlerPage() {
               onChange={e => setForm({ ...form, excerpt: e.target.value })}
               className="form-input"
               placeholder="Kısa açıklama"
+            />
+          </div>
+          <div>
+            <label className="form-label">Orijinal Haber Linki (opsiyonel)</label>
+            <input
+              type="url"
+              value={form.sourceUrl}
+              onChange={e => setForm({ ...form, sourceUrl: e.target.value })}
+              className="form-input"
+              placeholder="https://kaynak-site.com/haber"
             />
           </div>
           <div className="grid grid-cols-2 gap-4">

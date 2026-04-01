@@ -30,7 +30,7 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
     }
 
     const body = await request.json()
-    const { title, content, excerpt, image, images, category, published, publishedAt } = body
+    const { title, content, excerpt, image, images, sourceUrl, category, published, publishedAt } = body
 
     const existing = await prisma.news.findUnique({ where: { id: params.id } })
     if (!existing) {
@@ -45,6 +45,7 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
         excerpt: excerpt || null,
         image: image || null,
         images: Array.isArray(images) ? images.filter(Boolean) : [],
+        sourceUrl: sourceUrl || null,
         category: category || 'Genel',
         published: published || false,
         publishedAt: published ? (publishedAt ? new Date(publishedAt) : existing.publishedAt || new Date()) : null,

@@ -51,7 +51,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { title, content, excerpt, image, images, category, published, publishedAt } = body
+    const { title, content, excerpt, image, images, sourceUrl, category, published, publishedAt } = body
 
     if (!title || !content) {
       return NextResponse.json({ error: 'Başlık ve içerik gerekli' }, { status: 400 })
@@ -75,6 +75,7 @@ export async function POST(request: NextRequest) {
         excerpt: excerpt || null,
         image: image || null,
         images: Array.isArray(images) ? images.filter(Boolean) : [],
+        sourceUrl: sourceUrl || null,
         category: category || 'Genel',
         published: published || false,
         publishedAt: published ? (publishedAt ? new Date(publishedAt) : new Date()) : null,

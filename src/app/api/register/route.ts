@@ -6,9 +6,9 @@ import { sendVerificationEmail, generate6DigitCode } from '@/lib/email'
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { name, email, password } = body
+    const { name, email, phone, password } = body
 
-    if (!name || !email || !password) {
+    if (!name || !email || !phone || !password) {
       return NextResponse.json({ error: 'Tüm alanlar gerekli' }, { status: 400 })
     }
 
@@ -27,6 +27,7 @@ export async function POST(request: NextRequest) {
       data: {
         name,
         email,
+        phone: phone || null,
         password: hashedPassword,
         role: 'MEMBER',
       },
@@ -45,7 +46,11 @@ export async function POST(request: NextRequest) {
       },
     })
 
-    sendVerificationEmail(email, code).catch(console.error)
+    try {
+      await sendVerificationEmail(email, code)
+    } catch (emailError) {
+      console.error('Doğrulama e-postası gönderilemedi:', emailError)
+    }
 
     return NextResponse.json(
       { message: 'Kayıt başarılı! Lütfen e-postanıza gelen 6 haneli kodu girin.' },

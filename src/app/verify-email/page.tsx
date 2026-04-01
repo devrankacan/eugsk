@@ -12,6 +12,7 @@ function VerifyEmailForm() {
   const [email, setEmail] = useState(initialEmail)
   const [code, setCode] = useState(['', '', '', '', '', ''])
   const [loading, setLoading] = useState(false)
+  const [resending, setResending] = useState(false)
   const [success, setSuccess] = useState(false)
   const inputs = useRef<(HTMLInputElement | null)[]>([])
 
@@ -34,6 +35,25 @@ function VerifyEmailForm() {
     if (pasted.length === 6) {
       setCode(pasted.split(''))
       inputs.current[5]?.focus()
+    }
+  }
+
+  const handleResend = async () => {
+    if (!email) { toast.error('E-posta adresi gerekli'); return }
+    setResending(true)
+    try {
+      const res = await fetch('/api/resend-verification', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      })
+      const data = await res.json()
+      if (!res.ok) toast.error(data.error || 'Kod gönderilemedi')
+      else toast.success('Doğrulama kodu tekrar gönderildi!')
+    } catch {
+      toast.error('Bir hata oluştu')
+    } finally {
+      setResending(false)
     }
   }
 
@@ -144,7 +164,14 @@ function VerifyEmailForm() {
           </form>
           <p className="mt-4 text-center text-xs text-gray-400">
             Kod gelmedi mi?{' '}
-            <Link href="/uye-ol" className="text-primary hover:underline">Yeniden kayıt ol</Link>
+            <button
+              type="button"
+              onClick={handleResend}
+              disabled={resending}
+              className="text-primary hover:underline font-medium disabled:opacity-50"
+            >
+              {resending ? 'Gönderiliyor...' : 'Kodu Tekrar Gönder'}
+            </button>
           </p>
         </div>
       </div>

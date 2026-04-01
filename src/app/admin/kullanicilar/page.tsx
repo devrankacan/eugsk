@@ -12,6 +12,7 @@ interface User {
   id: string
   name?: string
   email: string
+  phone?: string
   role: string
   emailVerified?: string
   createdAt: string
@@ -93,6 +94,7 @@ export default function AdminKullanicilarPage() {
             <thead>
               <tr className="bg-gray-50 border-b border-gray-100">
                 <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Kullanıcı</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Telefon</th>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Rol</th>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">E-posta Durumu</th>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Kayıt Tarihi</th>
@@ -101,15 +103,16 @@ export default function AdminKullanicilarPage() {
             </thead>
             <tbody className="divide-y divide-gray-50">
               {loading ? (
-                <tr><td colSpan={5} className="text-center py-8 text-gray-400">Yükleniyor...</td></tr>
+                <tr><td colSpan={6} className="text-center py-8 text-gray-400">Yükleniyor...</td></tr>
               ) : users.length === 0 ? (
-                <tr><td colSpan={5} className="text-center py-8 text-gray-400">Kullanıcı bulunamadı</td></tr>
+                <tr><td colSpan={6} className="text-center py-8 text-gray-400">Kullanıcı bulunamadı</td></tr>
               ) : users.map(u => (
                 <tr key={u.id} className="hover:bg-gray-50 transition-colors">
                   <td className="px-4 py-3">
                     <p className="font-medium text-gray-900 text-sm">{u.name || 'İsimsiz'}</p>
                     <p className="text-xs text-gray-400">{u.email}</p>
                   </td>
+                  <td className="px-4 py-3 text-sm text-gray-600">{u.phone || '-'}</td>
                   <td className="px-4 py-3">
                     <span className={`badge text-xs ${u.role === 'ADMIN' ? 'bg-red-100 text-red-700' : 'badge-primary'}`}>
                       {u.role === 'ADMIN' ? 'Admin' : 'Üye'}

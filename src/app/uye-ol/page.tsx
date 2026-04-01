@@ -2,11 +2,11 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import { Eye, EyeOff, UserPlus, Lock, Mail, User, ArrowLeft, CheckCircle } from 'lucide-react'
+import { Eye, EyeOff, UserPlus, Lock, Mail, User, Phone, ArrowLeft, CheckCircle } from 'lucide-react'
 import toast from 'react-hot-toast'
 
 export default function UyeOlPage() {
-  const [form, setForm] = useState({ name: '', email: '', password: '', confirmPassword: '' })
+  const [form, setForm] = useState({ name: '', email: '', phone: '', password: '', confirmPassword: '' })
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
   const [success, setSuccess] = useState(false)
@@ -28,7 +28,7 @@ export default function UyeOlPage() {
       const res = await fetch('/api/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: form.name, email: form.email, password: form.password }),
+        body: JSON.stringify({ name: form.name, email: form.email, phone: form.phone, password: form.password }),
       })
       const data = await res.json()
 
@@ -113,6 +113,21 @@ export default function UyeOlPage() {
                     onChange={e => setForm({ ...form, email: e.target.value })}
                     className="form-input pl-10"
                     placeholder="ornek@email.com"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="form-label">Telefon Numarası *</label>
+                <div className="relative">
+                  <Phone className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
+                  <input
+                    type="tel"
+                    required
+                    value={form.phone}
+                    onChange={e => setForm({ ...form, phone: e.target.value })}
+                    className="form-input pl-10"
+                    placeholder="05XX XXX XX XX"
                   />
                 </div>
               </div>

@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import { Calendar, Eye, ChevronRight } from 'lucide-react'
+import { Calendar, Eye, ChevronRight, ArrowRight } from 'lucide-react'
 import { formatDate } from '@/lib/utils'
 
 const CATEGORIES = ['Tümü', 'Futbol', 'Basketbol', 'Voleybol', 'Atletizm', 'Genel']
@@ -104,15 +104,23 @@ export default function NewsSection({ news }: NewsSectionProps) {
                   {item.excerpt && (
                     <p className="text-sm text-gray-500 line-clamp-2 mb-3">{item.excerpt}</p>
                   )}
-                  <div className="flex items-center gap-4 text-xs text-gray-400">
-                    <span className="flex items-center gap-1">
-                      <Calendar size={12} />
-                      {item.publishedAt ? formatDate(item.publishedAt) : 'Tarih yok'}
-                    </span>
-                    <span className="flex items-center gap-1">
-                      <Eye size={12} />
-                      {item.views}
-                    </span>
+                  <div className="flex items-center justify-between mt-3">
+                    <div className="flex items-center gap-3 text-xs text-gray-400">
+                      <span className="flex items-center gap-1">
+                        <Calendar size={12} />
+                        {item.publishedAt ? formatDate(item.publishedAt) : 'Tarih yok'}
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <Eye size={12} />
+                        {item.views}
+                      </span>
+                    </div>
+                    <Link
+                      href={`/haberler/${item.slug}`}
+                      className="flex items-center gap-1 text-xs font-semibold text-primary hover:text-secondary transition-colors"
+                    >
+                      Devamını Oku <ArrowRight size={12} />
+                    </Link>
                   </div>
                 </div>
               </article>

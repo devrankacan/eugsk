@@ -5,7 +5,7 @@ import Footer from '@/components/layout/Footer'
 
 export const dynamic = 'force-dynamic'
 import Link from 'next/link'
-import { Calendar, Eye, ArrowLeft } from 'lucide-react'
+import { Calendar, Eye, ArrowLeft, ExternalLink } from 'lucide-react'
 import { formatDate } from '@/lib/utils'
 
 export default async function NewsDetailPage({ params }: { params: { slug: string } }) {
@@ -95,8 +95,23 @@ export default async function NewsDetailPage({ params }: { params: { slug: strin
             </div>
           )}
 
+          {/* Source link */}
+          {(news as any).sourceUrl && (
+            <div className="mt-6 pt-4 border-t border-gray-100">
+              <a
+                href={(news as any).sourceUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 text-sm text-gray-500 hover:text-primary transition-colors"
+              >
+                <ExternalLink size={14} />
+                Orijinal Habere Git
+              </a>
+            </div>
+          )}
+
           {/* Back button */}
-          <div className="mt-8 pt-6 border-t border-gray-100">
+          <div className="mt-6 pt-4 border-t border-gray-100">
             <Link
               href="/haberler"
               className="inline-flex items-center gap-2 text-primary font-medium hover:text-primary-800 transition-colors"
