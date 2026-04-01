@@ -7,22 +7,11 @@ import { useSession, signOut } from 'next-auth/react'
 import { Menu, X, ChevronDown, User, LogOut, Settings, Search } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
-const navLinks = [
+const staticNavLinks = [
   { href: '/', label: 'Ana Sayfa' },
   { href: '/hakkimizda', label: 'Hakkımızda' },
   { href: '/haberler', label: 'Haberler' },
   { href: '/mac-merkezi', label: 'Maç Merkezi' },
-  {
-    href: '/branslar',
-    label: 'Branşlar',
-    children: [
-      { href: '/branslar/futbol', label: 'Futbol' },
-      { href: '/branslar/basketbol', label: 'Basketbol' },
-      { href: '/branslar/voleybol', label: 'Voleybol' },
-      { href: '/branslar/atletizm', label: 'Atletizm' },
-      { href: '/branslar/yuzme', label: 'Yüzme' },
-    ],
-  },
   { href: '/iletisim', label: 'İletişim' },
 ]
 
@@ -40,6 +29,7 @@ export default function Header() {
   })
   const [searchOpen, setSearchOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
+  const [branches, setBranches] = useState<{ id: string; name: string; slug: string }[]>([])
   const mobileRef = useRef<HTMLDivElement>(null)
   const searchInputRef = useRef<HTMLInputElement>(null)
 
@@ -47,6 +37,12 @@ export default function Header() {
     const onScroll = () => setScrolled(window.scrollY > 10)
     window.addEventListener('scroll', onScroll)
     return () => window.removeEventListener('scroll', onScroll)
+  }, [])
+
+  useEffect(() => {
+    fetch('/api/branslar').then(r => r.json()).then(d => {
+      if (Array.isArray(d)) setBranches(d)
+    }).catch(() => {})
   }, [])
 
   useEffect(() => {
@@ -119,39 +115,43 @@ export default function Header() {
 
             {/* Desktop nav */}
             <div className="hidden lg:flex items-center gap-0.5">
-              {navLinks.map(link => (
-                <div key={link.href} className="relative group">
-                  {link.children ? (
-                    <>
-                      <button
-                        className="flex items-center gap-1 px-3 py-2 rounded text-sm font-medium text-gray-200 hover:text-secondary hover:bg-white/10 transition-all"
-                        onMouseEnter={() => setOpenDropdown(link.href)}
-                        onMouseLeave={() => setOpenDropdown(null)}
-                      >
-                        {link.label}
-                        <ChevronDown size={14} className={cn('transition-transform', openDropdown === link.href && 'rotate-180')} />
-                      </button>
-                      {openDropdown === link.href && (
-                        <div
-                          className="absolute top-full left-0 mt-1 w-48 bg-white rounded-lg shadow-xl border border-gray-100 py-1 z-50"
-                          onMouseEnter={() => setOpenDropdown(link.href)}
-                          onMouseLeave={() => setOpenDropdown(null)}
-                        >
-                          {link.children.map(child => (
-                            <Link key={child.href} href={child.href} className="block px-4 py-2.5 text-sm text-gray-700 hover:bg-primary-50 hover:text-primary transition-colors">
-                              {child.label}
-                            </Link>
-                          ))}
-                        </div>
-                      )}
-                    </>
-                  ) : (
-                    <Link href={link.href} className="px-3 py-2 rounded text-sm font-medium text-gray-200 hover:text-secondary hover:bg-white/10 transition-all">
-                      {link.label}
-                    </Link>
-                  )}
-                </div>
+              {staticNavLinks.slice(0, 4).map(link => (
+                <Link key={link.href} href={link.href} className="px-3 py-2 rounded text-sm font-medium text-gray-200 hover:text-secondary hover:bg-white/10 transition-all">
+                  {link.label}
+                </Link>
               ))}
+
+              {/* Branşlar dropdown */}
+              <div className="relative group">
+                <button
+                  className="flex items-center gap-1 px-3 py-2 rounded text-sm font-medium text-gray-200 hover:text-secondary hover:bg-white/10 transition-all"
+                  onMouseEnter={() => setOpenDropdown('branslar')}
+                  onMouseLeave={() => setOpenDropdown(null)}
+                >
+                  Branşlar
+                  <ChevronDown size={14} className={cn('transition-transform', openDropdown === 'branslar' && 'rotate-180')} />
+                </button>
+                {openDropdown === 'branslar' && (
+                  <div
+                    className="absolute top-full left-0 mt-1 w-48 bg-white rounded-lg shadow-xl border border-gray-100 py-1 z-50"
+                    onMouseEnter={() => setOpenDropdown('branslar')}
+                    onMouseLeave={() => setOpenDropdown(null)}
+                  >
+                    <Link href="/branslar" className="block px-4 py-2.5 text-sm text-gray-500 hover:bg-primary-50 hover:text-primary transition-colors border-b border-gray-100">
+                      Tüm Branşlar
+                    </Link>
+                    {branches.map(b => (
+                      <Link key={b.id} href={`/branslar/${b.slug}`} className="block px-4 py-2.5 text-sm text-gray-700 hover:bg-primary-50 hover:text-primary transition-colors">
+                        {b.name}
+                      </Link>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <Link href="/iletisim" className="px-3 py-2 rounded text-sm font-medium text-gray-200 hover:text-secondary hover:bg-white/10 transition-all">
+                İletişim
+              </Link>
             </div>
 
             {/* Right actions */}
@@ -268,36 +268,40 @@ export default function Header() {
         </div>
 
         <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-1">
-          {navLinks.map(link => (
-            <div key={link.href}>
-              {link.children ? (
-                <>
-                  <button
-                    onClick={() => setMobileBranslar(!mobileBranslar)}
-                    className="w-full flex items-center justify-between px-4 py-3 rounded-lg text-sm font-medium text-gray-200 hover:bg-white/10 hover:text-secondary transition-all"
-                  >
-                    <span>{link.label}</span>
-                    <ChevronDown size={16} className={cn('transition-transform', mobileBranslar && 'rotate-180')} />
-                  </button>
-                  {mobileBranslar && (
-                    <div className="ml-3 mt-1 space-y-1 border-l-2 border-white/10 pl-3">
-                      {link.children.map(child => (
-                        <Link key={child.href} href={child.href} onClick={() => setMobileOpen(false)}
-                          className="block px-3 py-2.5 rounded-lg text-sm text-gray-300 hover:text-secondary hover:bg-white/10 transition-all">
-                          {child.label}
-                        </Link>
-                      ))}
-                    </div>
-                  )}
-                </>
-              ) : (
-                <Link href={link.href} onClick={() => setMobileOpen(false)}
-                  className="block px-4 py-3 rounded-lg text-sm font-medium text-gray-200 hover:bg-white/10 hover:text-secondary transition-all">
-                  {link.label}
-                </Link>
-              )}
-            </div>
+          {staticNavLinks.slice(0, 4).map(link => (
+            <Link key={link.href} href={link.href} onClick={() => setMobileOpen(false)}
+              className="block px-4 py-3 rounded-lg text-sm font-medium text-gray-200 hover:bg-white/10 hover:text-secondary transition-all">
+              {link.label}
+            </Link>
           ))}
+
+          {/* Branşlar mobile */}
+          <button
+            onClick={() => setMobileBranslar(!mobileBranslar)}
+            className="w-full flex items-center justify-between px-4 py-3 rounded-lg text-sm font-medium text-gray-200 hover:bg-white/10 hover:text-secondary transition-all"
+          >
+            <span>Branşlar</span>
+            <ChevronDown size={16} className={cn('transition-transform', mobileBranslar && 'rotate-180')} />
+          </button>
+          {mobileBranslar && (
+            <div className="ml-3 mt-1 space-y-1 border-l-2 border-white/10 pl-3">
+              <Link href="/branslar" onClick={() => setMobileOpen(false)}
+                className="block px-3 py-2.5 rounded-lg text-sm text-gray-400 hover:text-secondary hover:bg-white/10 transition-all">
+                Tüm Branşlar
+              </Link>
+              {branches.map(b => (
+                <Link key={b.id} href={`/branslar/${b.slug}`} onClick={() => setMobileOpen(false)}
+                  className="block px-3 py-2.5 rounded-lg text-sm text-gray-300 hover:text-secondary hover:bg-white/10 transition-all">
+                  {b.name}
+                </Link>
+              ))}
+            </div>
+          )}
+
+          <Link href="/iletisim" onClick={() => setMobileOpen(false)}
+            className="block px-4 py-3 rounded-lg text-sm font-medium text-gray-200 hover:bg-white/10 hover:text-secondary transition-all">
+            İletişim
+          </Link>
         </nav>
 
         <div className="p-4 border-t border-white/10">
