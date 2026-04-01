@@ -8,13 +8,15 @@ interface Match {
   id: string
   homeTeam: string
   awayTeam: string
+  homeLogo?: string
+  awayLogo?: string
   homeScore?: number
   awayScore?: number
   date: string
   venue?: string
   league?: string
   status: string
-  branch: { name: string; icon?: string }
+  branch: { name: string }
 }
 
 interface MatchCenterProps {
@@ -96,7 +98,6 @@ function MatchCard({ match }: { match: Match }) {
       {/* Header */}
       <div className="flex justify-between items-center mb-3">
         <div className="flex items-center gap-2 text-xs text-gray-500">
-          <span>{match.branch.icon}</span>
           <span>{match.branch.name}</span>
           {match.league && <span className="text-gray-300">•</span>}
           {match.league && <span>{match.league}</span>}
@@ -107,12 +108,16 @@ function MatchCard({ match }: { match: Match }) {
       </div>
 
       {/* Teams & Score */}
-      <div className="flex items-center gap-4">
-        <div className="flex-1 text-right">
-          <p className="font-semibold text-sm text-gray-800 leading-tight">{match.homeTeam}</p>
+      <div className="flex items-center gap-3">
+        <div className="flex-1 flex flex-col items-end gap-1">
+          {match.homeLogo && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={match.homeLogo} alt={match.homeTeam} className="w-8 h-8 object-contain" />
+          )}
+          <p className="font-semibold text-sm text-gray-800 leading-tight text-right">{match.homeTeam}</p>
         </div>
 
-        <div className="shrink-0 min-w-[80px] text-center">
+        <div className="shrink-0 min-w-[72px] text-center">
           {isFinished ? (
             <div className="bg-primary text-white rounded-lg px-3 py-1.5 font-black text-xl">
               {match.homeScore ?? 0} - {match.awayScore ?? 0}
@@ -122,13 +127,15 @@ function MatchCard({ match }: { match: Match }) {
               {match.homeScore ?? 0} - {match.awayScore ?? 0}
             </div>
           ) : (
-            <div className="text-xs text-center">
-              <div className="font-bold text-primary text-base">VS</div>
-            </div>
+            <div className="font-bold text-primary text-base">VS</div>
           )}
         </div>
 
-        <div className="flex-1">
+        <div className="flex-1 flex flex-col items-start gap-1">
+          {match.awayLogo && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={match.awayLogo} alt={match.awayTeam} className="w-8 h-8 object-contain" />
+          )}
           <p className="font-semibold text-sm text-gray-800 leading-tight">{match.awayTeam}</p>
         </div>
       </div>

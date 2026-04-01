@@ -22,7 +22,7 @@ async function getData() {
         take: 6,
       }),
       prisma.match.findMany({
-        include: { branch: { select: { name: true, icon: true, slug: true } } },
+        include: { branch: { select: { name: true, slug: true } } },
         orderBy: { date: 'desc' },
         take: 10,
       }),
@@ -32,7 +32,7 @@ async function getData() {
       }),
       prisma.player.findMany({
         where: { active: true },
-        include: { branch: { select: { name: true, slug: true, icon: true } } },
+        include: { branch: { select: { name: true, slug: true } } },
         take: 20,
         orderBy: { number: 'asc' },
       }),

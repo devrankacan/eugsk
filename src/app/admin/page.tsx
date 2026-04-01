@@ -20,7 +20,7 @@ export default async function AdminDashboardPage() {
       where: { status: 'UPCOMING' },
       orderBy: { date: 'asc' },
       take: 5,
-      include: { branch: { select: { name: true, icon: true } } },
+      include: { branch: { select: { name: true } } },
     }),
   ])
 
@@ -47,7 +47,7 @@ export default async function AdminDashboardPage() {
             </div>
             <div>
               <h2 className="text-xl font-bold">Hoş Geldiniz!</h2>
-              <p className="text-gray-300 text-sm">Erzurum Üniversiteli Gençler SK Yönetim Paneli</p>
+              <p className="text-gray-300 text-sm">Devran Kaçan Hayratıdır</p>
             </div>
           </div>
         </div>
@@ -108,7 +108,6 @@ export default async function AdminDashboardPage() {
               {upcomingMatches.map(m => (
                 <div key={m.id} className="px-5 py-3">
                   <div className="flex items-center gap-2 text-xs text-gray-500 mb-1">
-                    <span>{m.branch.icon}</span>
                     <span>{m.branch.name}</span>
                   </div>
                   <p className="text-sm font-medium text-gray-800">
