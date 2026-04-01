@@ -39,6 +39,20 @@ module.exports = {
       fontFamily: {
         sans: ['Inter', 'system-ui', 'sans-serif'],
       },
+      keyframes: {
+        'intro-left': {
+          '0%': { opacity: '0', transform: 'translateX(-40px)' },
+          '100%': { opacity: '1', transform: 'translateX(0)' },
+        },
+        'intro-right': {
+          '0%': { opacity: '0', transform: 'translateX(40px)' },
+          '100%': { opacity: '1', transform: 'translateX(0)' },
+        },
+      },
+      animation: {
+        'intro-left': 'intro-left 0.7s ease-out forwards',
+        'intro-right': 'intro-right 0.7s ease-out forwards',
+      },
     },
   },
   plugins: [],
