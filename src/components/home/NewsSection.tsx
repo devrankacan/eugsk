@@ -66,9 +66,9 @@ export default function NewsSection({ news }: NewsSectionProps) {
             Bu kategoride haber bulunamadı.
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filtered.map((item, idx) => (
-              <article key={item.id} className={`card group ${idx === 0 ? 'md:col-span-2 lg:col-span-1' : ''}`}>
+          <div className="flex md:grid md:grid-cols-3 gap-6 overflow-x-auto md:overflow-visible pb-2 md:pb-0 -mx-4 md:mx-0 px-4 md:px-0 snap-x snap-mandatory md:snap-none">
+            {filtered.map((item) => (
+              <article key={item.id} className="card group shrink-0 w-[80vw] sm:w-[60vw] md:w-auto snap-start">
                 {/* Image */}
                 <div className="relative h-48 bg-gradient-to-br from-primary-100 to-primary-200 overflow-hidden">
                   {item.image ? (

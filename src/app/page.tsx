@@ -19,7 +19,7 @@ async function getData() {
       prisma.news.findMany({
         where: { published: true },
         orderBy: { publishedAt: 'desc' },
-        take: 6,
+        take: 3,
       }),
       prisma.match.findMany({
         include: { branch: { select: { name: true, slug: true } } },

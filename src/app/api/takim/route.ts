@@ -21,7 +21,10 @@ export async function GET(request: NextRequest) {
 
     const players = await prisma.player.findMany({
       where,
-      include: { branch: { select: { name: true, slug: true, icon: true } } },
+      include: {
+        branch: { select: { name: true, slug: true } },
+        ageCategory: { select: { id: true, name: true } },
+      },
       orderBy: [{ number: 'asc' }, { lastName: 'asc' }],
     })
 
@@ -39,7 +42,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { firstName, lastName, number, position, photo, birthDate, nationality, bio, active, branchId } = body
+    const { firstName, lastName, number, position, photo, birthDate, nationality, bio, active, branchId, playerGender, ageCategoryId } = body
 
     if (!firstName || !lastName || !branchId) {
       return NextResponse.json({ error: 'Ad, soyad ve branş gerekli' }, { status: 400 })
@@ -55,6 +58,8 @@ export async function POST(request: NextRequest) {
         birthDate: birthDate ? new Date(birthDate) : null,
         nationality: nationality || 'Türkiye',
         bio: bio || null,
+        playerGender: playerGender || 'ERKEK',
+        ageCategoryId: ageCategoryId || null,
         active: active !== false,
         branchId,
       },

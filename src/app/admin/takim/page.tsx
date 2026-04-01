@@ -8,6 +8,8 @@ import ImageUpload from '@/components/ui/ImageUpload'
 import { Plus, Edit2, Trash2, User } from 'lucide-react'
 import toast from 'react-hot-toast'
 
+interface AgeCategory { id: string; name: string; branchId: string }
+
 interface Player {
   id: string
   firstName: string
@@ -16,6 +18,9 @@ interface Player {
   position?: string
   photo?: string
   nationality?: string
+  playerGender: string
+  ageCategoryId?: string
+  ageCategory?: { id: string; name: string }
   active: boolean
   branchId: string
   branch: { name: string }
@@ -32,6 +37,8 @@ const emptyForm = {
   birthDate: '',
   nationality: 'Türkiye',
   bio: '',
+  playerGender: 'ERKEK',
+  ageCategoryId: '',
   active: true,
   branchId: '',
 }
@@ -39,6 +46,7 @@ const emptyForm = {
 export default function AdminTakimPage() {
   const [players, setPlayers] = useState<Player[]>([])
   const [branches, setBranches] = useState<Branch[]>([])
+  const [allAgeCats, setAllAgeCats] = useState<AgeCategory[]>([])
   const [loading, setLoading] = useState(true)
   const [filterBranch, setFilterBranch] = useState('')
   const [modalOpen, setModalOpen] = useState(false)
@@ -47,9 +55,28 @@ export default function AdminTakimPage() {
   const [saving, setSaving] = useState(false)
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null)
 
+  // Age categories filtered by currently selected branch in form
+  const formAgeCats = allAgeCats.filter(c => c.branchId === form.branchId)
+
   useEffect(() => {
     Promise.all([fetchPlayers(), fetchBranches()])
   }, [])
+
+  // Load age categories when branch changes in form
+  useEffect(() => {
+    if (!form.branchId) return
+    fetch(`/api/yas-kategorileri?branchId=${form.branchId}`)
+      .then(r => r.json())
+      .then(d => {
+        if (Array.isArray(d)) {
+          setAllAgeCats(prev => {
+            const others = prev.filter(c => c.branchId !== form.branchId)
+            return [...others, ...d]
+          })
+        }
+      })
+      .catch(() => {})
+  }, [form.branchId])
 
   async function fetchPlayers() {
     setLoading(true)
@@ -86,6 +113,8 @@ export default function AdminTakimPage() {
       birthDate: '',
       nationality: p.nationality || 'Türkiye',
       bio: '',
+      playerGender: p.playerGender || 'ERKEK',
+      ageCategoryId: p.ageCategoryId || '',
       active: p.active,
       branchId: p.branchId,
     })
@@ -176,6 +205,14 @@ export default function AdminTakimPage() {
                   <p className="font-bold text-gray-900 text-xs truncate">{player.firstName} {player.lastName}</p>
                   <p className="text-xs text-primary mt-0.5 truncate">{player.position || '-'}</p>
                   <p className="text-xs text-gray-400 truncate">{player.branch.name}</p>
+                  <div className="flex items-center justify-center gap-1 mt-0.5">
+                    <span className={`text-xs px-1.5 py-0.5 rounded font-medium ${player.playerGender === 'KADIN' ? 'bg-pink-100 text-pink-700' : 'bg-blue-100 text-blue-700'}`}>
+                      {player.playerGender === 'KADIN' ? 'K' : 'E'}
+                    </span>
+                    {player.ageCategory && (
+                      <span className="text-xs text-gray-500 truncate">{player.ageCategory.name}</span>
+                    )}
+                  </div>
                 </div>
                 <div className="flex border-t border-gray-100">
                   <button onClick={() => openEdit(player)} className="flex-1 py-1.5 text-xs text-gray-500 hover:text-primary hover:bg-primary-50 transition-all flex items-center justify-center gap-1">
@@ -224,10 +261,29 @@ export default function AdminTakimPage() {
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="form-label">Branş *</label>
-              <select value={form.branchId} onChange={e => setForm({ ...form, branchId: e.target.value })} className="form-input">
+              <select value={form.branchId} onChange={e => setForm({ ...form, branchId: e.target.value, ageCategoryId: '' })} className="form-input">
                 <option value="">Seçin...</option>
                 {branches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
               </select>
+            </div>
+            <div>
+              <label className="form-label">Cinsiyet</label>
+              <select value={form.playerGender} onChange={e => setForm({ ...form, playerGender: e.target.value })} className="form-input">
+                <option value="ERKEK">Erkek</option>
+                <option value="KADIN">Kadın</option>
+              </select>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="form-label">Yaş Kategorisi</label>
+              <select value={form.ageCategoryId} onChange={e => setForm({ ...form, ageCategoryId: e.target.value })} className="form-input">
+                <option value="">Kategori seçin...</option>
+                {formAgeCats.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+              </select>
+              {form.branchId && formAgeCats.length === 0 && (
+                <p className="text-xs text-gray-400 mt-1">Bu branşa henüz kategori eklenmemiş.</p>
+              )}
             </div>
             <div>
               <label className="form-label">Doğum Tarihi</label>

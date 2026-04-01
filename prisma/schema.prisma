@@ -102,6 +102,7 @@ model AgeCategory {
   name     String
   branchId String
   branch   Branch  @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  players  Player[]
   order    Int     @default(0)
   active   Boolean @default(true)
   createdAt DateTime @default(now())
@@ -167,20 +168,23 @@ model LeagueTableRow {
 }
 
 model Player {
-  id          String    @id @default(cuid())
-  firstName   String
-  lastName    String
-  number      Int?
-  position    String?
-  photo       String?
-  birthDate   DateTime?
-  nationality String?   @default("Türkiye")
-  bio         String?   @db.Text
-  active      Boolean   @default(true)
-  branchId    String
-  branch      Branch    @relation(fields: [branchId], references: [id], onDelete: Cascade)
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  id             String       @id @default(cuid())
+  firstName      String
+  lastName       String
+  number         Int?
+  position       String?
+  photo          String?
+  birthDate      DateTime?
+  nationality    String?      @default("Türkiye")
+  bio            String?      @db.Text
+  playerGender   String       @default("ERKEK")
+  ageCategoryId  String?
+  ageCategory    AgeCategory? @relation(fields: [ageCategoryId], references: [id])
+  active         Boolean      @default(true)
+  branchId       String
+  branch         Branch       @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
 
   @@map("players")
 }

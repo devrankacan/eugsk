@@ -11,7 +11,7 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
     }
 
     const body = await request.json()
-    const { firstName, lastName, number, position, photo, birthDate, nationality, bio, active, branchId } = body
+    const { firstName, lastName, number, position, photo, birthDate, nationality, bio, active, branchId, playerGender, ageCategoryId } = body
 
     const player = await prisma.player.update({
       where: { id: params.id },
@@ -24,6 +24,8 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
         birthDate: birthDate ? new Date(birthDate) : null,
         nationality: nationality || 'Türkiye',
         bio: bio || null,
+        playerGender: playerGender || 'ERKEK',
+        ageCategoryId: ageCategoryId || null,
         active: active !== false,
         branchId,
       },
