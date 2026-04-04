@@ -21,17 +21,19 @@ export default function Header() {
   const [scrolled, setScrolled] = useState(false)
   const [openDropdown, setOpenDropdown] = useState<string | null>(null)
   const [mobileBranslar, setMobileBranslar] = useState(false)
-  const [siteSettings, setSiteSettings] = useState<any>(() => {
-    if (typeof window !== 'undefined') {
-      try { return JSON.parse(localStorage.getItem('siteSettings') || 'null') } catch { return null }
-    }
-    return null
-  })
+  const [siteSettings, setSiteSettings] = useState<any>(null)
   const [searchOpen, setSearchOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [branches, setBranches] = useState<{ id: string; name: string; slug: string }[]>([])
   const mobileRef = useRef<HTMLDivElement>(null)
   const searchInputRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    try {
+      const cached = localStorage.getItem('siteSettings')
+      if (cached) setSiteSettings(JSON.parse(cached))
+    } catch {}
+  }, [])
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 10)
