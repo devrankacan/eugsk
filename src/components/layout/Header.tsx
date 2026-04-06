@@ -6,7 +6,6 @@ import Image from 'next/image'
 import { useSession, signOut } from 'next-auth/react'
 import { Menu, X, ChevronDown, User, LogOut, Settings, Search, Radio } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { io } from 'socket.io-client'
 
 const staticNavLinks = [
   { href: '/', label: 'Ana Sayfa' },
@@ -43,10 +42,13 @@ export default function Header() {
   }, [])
 
   useEffect(() => {
-    const socket = io({ transports: ['websocket', 'polling'] })
-    socket.on('live-status', ({ isLive }: { isLive: boolean }) => setIsStreamLive(isLive))
-    socket.on('broadcast-ended', () => setIsStreamLive(false))
-    return () => { socket.disconnect() }
+    let socket: any = null
+    import('socket.io-client').then(({ io }) => {
+      socket = io({ transports: ['websocket', 'polling'] })
+      socket.on('live-status', ({ isLive }: { isLive: boolean }) => setIsStreamLive(isLive))
+      socket.on('broadcast-ended', () => setIsStreamLive(false))
+    })
+    return () => { socket?.disconnect() }
   }, [])
 
   useEffect(() => {
