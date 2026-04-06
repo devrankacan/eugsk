@@ -5,7 +5,7 @@ import { io, Socket } from 'socket.io-client'
 import AdminHeader from '@/components/admin/AdminHeader'
 import Button from '@/components/ui/Button'
 import ImageUpload from '@/components/ui/ImageUpload'
-import { Radio, Square, Users, Monitor, Camera, ExternalLink, Mic, RefreshCw } from 'lucide-react'
+import { Radio, Square, Users, Monitor, Camera, ExternalLink, Mic, RefreshCw, Play, Pause, RotateCcw, Timer } from 'lucide-react'
 import toast from 'react-hot-toast'
 
 const ICE_SERVERS = {
@@ -34,7 +34,7 @@ const defaultMatchInfo: MatchInfo = {
 export default function AdminCanliYayin() {
   const [isLive, setIsLive] = useState(false)
   const [viewerCount, setViewerCount] = useState(0)
-  const [scores, setScores] = useState({ home: 0, away: 0 })
+  const [scores, setScores] = useState({ home: 0, away: 0, homeSets: 0, awaySets: 0 })
   const [matchInfo, setMatchInfo] = useState<MatchInfo>(defaultMatchInfo)
   const [mediaMode, setMediaMode] = useState<'camera' | 'screen'>('camera')
   const [starting, setStarting] = useState(false)
@@ -43,13 +43,80 @@ export default function AdminCanliYayin() {
   const [selectedCamera, setSelectedCamera] = useState<string>('')
   const [selectedMic, setSelectedMic] = useState<string>('')
   const [switchingDevice, setSwitchingDevice] = useState(false)
+  // Timer
+  const [timerRunning, setTimerRunning] = useState(false)
+  const [timerDisplay, setTimerDisplay] = useState('00:00')
+  const timerBaseRef = useRef(0)
+  const timerStartRef = useRef<number | null>(null)
+  // Match events
+  const [eventForm, setEventForm] = useState<{ type: string; team: 'home' | 'away' } | null>(null)
+  const [eventPlayer, setEventPlayer] = useState('')
+  const [eventPlayerOut, setEventPlayerOut] = useState('')
+  const [eventPlayerIn, setEventPlayerIn] = useState('')
 
   const socketRef = useRef<Socket | null>(null)
   const streamRef = useRef<MediaStream | null>(null)
   const videoRef = useRef<HTMLVideoElement>(null)
   const peersRef = useRef<Record<string, RTCPeerConnection>>({})
 
-  // Cihaz listesini yükle
+  // ── Timer ──────────────────────────────────────────
+  function formatTime(ms: number) {
+    const s = Math.floor(Math.max(0, ms) / 1000)
+    return `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`
+  }
+
+  useEffect(() => {
+    if (!timerRunning) return
+    const iv = setInterval(() => {
+      if (timerStartRef.current != null) {
+        const ms = timerBaseRef.current + (Date.now() - timerStartRef.current)
+        setTimerDisplay(formatTime(ms))
+      }
+    }, 250)
+    return () => clearInterval(iv)
+  }, [timerRunning])
+
+  function timerControl(action: 'start' | 'pause' | 'reset') {
+    const now = Date.now()
+    if (action === 'start') {
+      timerStartRef.current = now
+      setTimerRunning(true)
+      socketRef.current?.emit('timer-control', { action: 'start', elapsed: timerBaseRef.current })
+    } else if (action === 'pause') {
+      if (timerStartRef.current != null) {
+        timerBaseRef.current += now - timerStartRef.current
+        timerStartRef.current = null
+      }
+      setTimerRunning(false)
+      setTimerDisplay(formatTime(timerBaseRef.current))
+      socketRef.current?.emit('timer-control', { action: 'pause' })
+    } else {
+      timerBaseRef.current = 0
+      timerStartRef.current = null
+      setTimerRunning(false)
+      setTimerDisplay('00:00')
+      socketRef.current?.emit('timer-control', { action: 'reset' })
+    }
+  }
+
+  // ── Match event gönder ──────────────────────────────
+  function sendMatchEvent() {
+    if (!eventForm) return
+    socketRef.current?.emit('match-event', {
+      type: eventForm.type,
+      team: eventForm.team,
+      player: eventPlayer || undefined,
+      playerOut: eventPlayerOut || undefined,
+      playerIn: eventPlayerIn || undefined,
+    })
+    setEventForm(null)
+    setEventPlayer('')
+    setEventPlayerOut('')
+    setEventPlayerIn('')
+    toast.success('Olay yayına gönderildi')
+  }
+
+  // ── Cihaz listesini yükle ──────────────────────────
   const loadDevices = useCallback(async () => {
     try {
       // Önce izin iste (etiketler yalnızca izin sonrası görünür)
@@ -217,6 +284,15 @@ export default function AdminCanliYayin() {
   const updateScore = useCallback((team: 'home' | 'away', delta: number) => {
     setScores(prev => {
       const next = { ...prev, [team]: Math.max(0, prev[team] + delta) }
+      socketRef.current?.emit('update-score', next)
+      return next
+    })
+  }, [])
+
+  const updateSets = useCallback((team: 'home' | 'away', delta: number) => {
+    setScores(prev => {
+      const field = team === 'home' ? 'homeSets' : 'awaySets'
+      const next = { ...prev, [field]: Math.max(0, (prev[field] ?? 0) + delta) }
       socketRef.current?.emit('update-score', next)
       return next
     })
@@ -460,10 +536,11 @@ export default function AdminCanliYayin() {
 
             {/* Score controls — only when live */}
             {isLive && (
-              <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
-                <h3 className="font-bold text-gray-900 text-sm mb-4 text-center">Skor Kontrolü</h3>
+              <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4 space-y-3">
+                <h3 className="font-bold text-gray-900 text-sm text-center">Skor Kontrolü</h3>
+
+                {/* Ana skor */}
                 <div className="flex items-center justify-center gap-6">
-                  {/* Home */}
                   <div className="text-center flex-1">
                     <p className="text-xs text-gray-500 mb-2 truncate font-medium">{matchInfo.homeTeam || 'Ev Sahibi'}</p>
                     <div className="flex items-center gap-2 justify-center">
@@ -475,7 +552,6 @@ export default function AdminCanliYayin() {
                     </div>
                   </div>
                   <span className="text-2xl font-black text-gray-300">-</span>
-                  {/* Away */}
                   <div className="text-center flex-1">
                     <p className="text-xs text-gray-500 mb-2 truncate font-medium">{matchInfo.awayTeam || 'Deplasman'}</p>
                     <div className="flex items-center gap-2 justify-center">
@@ -487,6 +563,116 @@ export default function AdminCanliYayin() {
                     </div>
                   </div>
                 </div>
+
+                {/* Voleybol set sayısı */}
+                {(matchInfo.branch || '').toLowerCase().includes('voleybol') && (
+                  <div className="border-t border-gray-100 pt-3">
+                    <p className="text-[10px] text-gray-400 text-center uppercase tracking-wider font-semibold mb-2">Set Sayısı</p>
+                    <div className="flex items-center justify-center gap-6">
+                      <div className="flex items-center gap-1.5 justify-center">
+                        <button onClick={() => updateSets('home', -1)}
+                          className="w-7 h-7 rounded-lg bg-gray-100 hover:bg-red-100 hover:text-red-600 font-black transition-all text-sm">−</button>
+                        <span className="text-xl font-black text-primary w-8 text-center tabular-nums">{scores.homeSets ?? 0}</span>
+                        <button onClick={() => updateSets('home', 1)}
+                          className="w-7 h-7 rounded-lg bg-primary text-white font-black transition-all text-sm">+</button>
+                      </div>
+                      <span className="text-gray-300 font-black">·</span>
+                      <div className="flex items-center gap-1.5 justify-center">
+                        <button onClick={() => updateSets('away', -1)}
+                          className="w-7 h-7 rounded-lg bg-gray-100 hover:bg-red-100 hover:text-red-600 font-black transition-all text-sm">−</button>
+                        <span className="text-xl font-black text-primary w-8 text-center tabular-nums">{scores.awaySets ?? 0}</span>
+                        <button onClick={() => updateSets('away', 1)}
+                          className="w-7 h-7 rounded-lg bg-primary text-white font-black transition-all text-sm">+</button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Kronometre — futbol için */}
+            {isLive && (matchInfo.branch || '').toLowerCase().includes('futbol') && (
+              <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
+                <div className="flex items-center gap-2 mb-3">
+                  <Timer size={13} className="text-gray-400" />
+                  <h3 className="font-bold text-gray-900 text-sm">Kronometre</h3>
+                  <span className="ml-auto font-black text-primary tabular-nums text-lg">{timerDisplay}</span>
+                </div>
+                <div className="flex gap-2">
+                  {!timerRunning ? (
+                    <button onClick={() => timerControl('start')}
+                      className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg bg-green-600 text-white text-sm font-bold hover:bg-green-700 transition-all">
+                      <Play size={13} /> Başlat
+                    </button>
+                  ) : (
+                    <button onClick={() => timerControl('pause')}
+                      className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg bg-yellow-500 text-white text-sm font-bold hover:bg-yellow-600 transition-all">
+                      <Pause size={13} /> Durdur
+                    </button>
+                  )}
+                  <button onClick={() => timerControl('reset')}
+                    className="px-3 py-2 rounded-lg bg-gray-100 text-gray-600 hover:bg-gray-200 transition-all">
+                    <RotateCcw size={14} />
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Maç Olayları (Gol, Kart, Değişiklik) */}
+            {isLive && (
+              <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
+                <h3 className="font-bold text-gray-900 text-sm mb-3">Maç Olayları</h3>
+                {!eventForm ? (
+                  <div className="grid grid-cols-2 gap-2">
+                    {[
+                      { type: 'goal',         icon: '⚽', label: 'Gol',          color: 'bg-green-50 hover:bg-green-100 text-green-700 border-green-200' },
+                      { type: 'yellow_card',  icon: '🟨', label: 'Sarı Kart',    color: 'bg-yellow-50 hover:bg-yellow-100 text-yellow-700 border-yellow-200' },
+                      { type: 'red_card',     icon: '🟥', label: 'Kırmızı Kart', color: 'bg-red-50 hover:bg-red-100 text-red-700 border-red-200' },
+                      { type: 'substitution', icon: '🔄', label: 'Değişiklik',   color: 'bg-blue-50 hover:bg-blue-100 text-blue-700 border-blue-200' },
+                      { type: 'timeout',      icon: '⏸', label: 'Mola',          color: 'bg-purple-50 hover:bg-purple-100 text-purple-700 border-purple-200' },
+                    ].map(ev => (
+                      <button key={ev.type}
+                        onClick={() => setEventForm({ type: ev.type, team: 'home' })}
+                        className={`flex items-center gap-1.5 px-3 py-2 rounded-lg border text-xs font-bold transition-all ${ev.color}`}>
+                        <span>{ev.icon}</span> {ev.label}
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    <div className="flex gap-2">
+                      <button onClick={() => setEventForm(f => f ? { ...f, team: 'home' } : f)}
+                        className={`flex-1 py-1.5 rounded-lg text-xs font-bold border transition-all ${eventForm.team === 'home' ? 'bg-primary text-white border-primary' : 'bg-gray-50 text-gray-600 border-gray-200'}`}>
+                        {matchInfo.homeTeam || 'Ev Sahibi'}
+                      </button>
+                      <button onClick={() => setEventForm(f => f ? { ...f, team: 'away' } : f)}
+                        className={`flex-1 py-1.5 rounded-lg text-xs font-bold border transition-all ${eventForm.team === 'away' ? 'bg-primary text-white border-primary' : 'bg-gray-50 text-gray-600 border-gray-200'}`}>
+                        {matchInfo.awayTeam || 'Deplasman'}
+                      </button>
+                    </div>
+                    {eventForm.type === 'substitution' ? (
+                      <>
+                        <input value={eventPlayerOut} onChange={e => setEventPlayerOut(e.target.value)}
+                          placeholder="Çıkan oyuncu" className="form-input text-xs" />
+                        <input value={eventPlayerIn} onChange={e => setEventPlayerIn(e.target.value)}
+                          placeholder="Giren oyuncu" className="form-input text-xs" />
+                      </>
+                    ) : (
+                      <input value={eventPlayer} onChange={e => setEventPlayer(e.target.value)}
+                        placeholder="Oyuncu adı (isteğe bağlı)" className="form-input text-xs" />
+                    )}
+                    <div className="flex gap-2 pt-1">
+                      <button onClick={sendMatchEvent}
+                        className="flex-1 py-2 rounded-lg bg-primary text-white text-xs font-bold hover:bg-primary-800 transition-all">
+                        Gönder
+                      </button>
+                      <button onClick={() => { setEventForm(null); setEventPlayer(''); setEventPlayerOut(''); setEventPlayerIn('') }}
+                        className="px-3 py-2 rounded-lg bg-gray-100 text-gray-500 text-xs hover:bg-gray-200 transition-all">
+                        İptal
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </div>

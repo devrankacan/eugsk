@@ -66,6 +66,14 @@ module.exports = {
           '30%': { backgroundColor: 'rgba(255,255,255,0.18)' },
           '100%': { backgroundColor: 'rgba(255,255,255,0.0)' },
         },
+        'event-slide': {
+          '0%': { opacity: '0', transform: 'translateX(-32px)' },
+          '100%': { opacity: '1', transform: 'translateX(0)' },
+        },
+        'event-fade-out': {
+          '0%': { opacity: '1' },
+          '100%': { opacity: '0' },
+        },
       },
       animation: {
         'intro-left': 'intro-left 0.7s ease-out forwards',
@@ -74,6 +82,7 @@ module.exports = {
         'kj-score-pop': 'kj-score-pop 0.35s ease-in-out forwards',
         'cev-slide-in': 'cev-slide-in 0.4s cubic-bezier(0.22,1,0.36,1) forwards',
         'cev-flash': 'cev-flash 0.5s ease-out forwards',
+        'event-slide': 'event-slide 0.35s cubic-bezier(0.22,1,0.36,1) forwards',
       },
     },
   },

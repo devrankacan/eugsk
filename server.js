@@ -30,7 +30,7 @@ app.prepare().then(() => {
   io.on('connection', (socket) => {
     // Send current live status immediately on connect
     socket.emit('live-status', liveRoom
-      ? { isLive: true, matchInfo: liveRoom.matchInfo, scores: liveRoom.scores }
+      ? { isLive: true, matchInfo: liveRoom.matchInfo, scores: liveRoom.scores, timer: liveRoom.timer }
       : { isLive: false }
     )
 
@@ -41,11 +41,12 @@ app.prepare().then(() => {
         viewers: new Map(),
         matchInfo: matchInfo || {},
         scores: { home: 0, away: 0 },
+        timer: { running: false, startedAt: null, elapsed: 0 },
       }
       socket.isBroadcaster = true
       socket.join('live')
       console.log('▶ Broadcast started')
-      io.emit('live-status', { isLive: true, matchInfo: liveRoom.matchInfo, scores: liveRoom.scores })
+      io.emit('live-status', { isLive: true, matchInfo: liveRoom.matchInfo, scores: liveRoom.scores, timer: liveRoom.timer })
     })
 
     socket.on('update-match', (matchInfo) => {
@@ -58,6 +59,27 @@ app.prepare().then(() => {
       if (!liveRoom || liveRoom.broadcasterId !== socket.id) return
       liveRoom.scores = scores
       io.to('live').emit('score-updated', scores)
+    })
+
+    socket.on('timer-control', ({ action, elapsed }) => {
+      if (!liveRoom || liveRoom.broadcasterId !== socket.id) return
+      const now = Date.now()
+      if (action === 'start') {
+        liveRoom.timer = { running: true, startedAt: now, elapsed: elapsed != null ? elapsed : liveRoom.timer.elapsed }
+      } else if (action === 'pause') {
+        const ms = liveRoom.timer.startedAt
+          ? liveRoom.timer.elapsed + (now - liveRoom.timer.startedAt)
+          : liveRoom.timer.elapsed
+        liveRoom.timer = { running: false, startedAt: null, elapsed: ms }
+      } else if (action === 'reset') {
+        liveRoom.timer = { running: false, startedAt: null, elapsed: 0 }
+      }
+      io.to('live').emit('timer-updated', liveRoom.timer)
+    })
+
+    socket.on('match-event', (event) => {
+      if (!liveRoom || liveRoom.broadcasterId !== socket.id) return
+      io.to('live').emit('match-event', { ...event, id: `${Date.now()}-${Math.random().toString(36).slice(2)}` })
     })
 
     socket.on('stop-broadcast', () => {
@@ -74,6 +96,7 @@ app.prepare().then(() => {
       liveRoom.viewers.set(socket.id, true)
       socket.emit('match-updated', liveRoom.matchInfo)
       socket.emit('score-updated', liveRoom.scores)
+      socket.emit('timer-updated', liveRoom.timer)
       // Tell broadcaster a new viewer is ready for an offer
       io.to(liveRoom.broadcasterId).emit('viewer-joined', { viewerId: socket.id })
       io.to(liveRoom.broadcasterId).emit('viewer-count', liveRoom.viewers.size)

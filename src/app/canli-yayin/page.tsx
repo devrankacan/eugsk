@@ -25,6 +25,50 @@ interface MatchInfo {
 interface Scores {
   home: number
   away: number
+  homeSets?: number
+  awaySets?: number
+}
+
+interface TimerState {
+  running: boolean
+  startedAt: number | null
+  elapsed: number
+}
+
+interface MatchEvent {
+  id: string
+  type: 'goal' | 'yellow_card' | 'red_card' | 'substitution' | 'timeout'
+  team: 'home' | 'away'
+  player?: string
+  playerOut?: string
+  playerIn?: string
+}
+
+function abbrev(name: string): string {
+  return (name || '???').slice(0, 3).toUpperCase()
+}
+
+function formatTime(ms: number): string {
+  const s = Math.floor(Math.max(0, ms) / 1000)
+  return `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`
+}
+
+function UCLStar() {
+  return (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true" style={{ flexShrink: 0 }}>
+      <circle cx="12" cy="12" r="10.5" stroke="#c9a227" strokeWidth="1.4" />
+      <path d="M12 3.5l1.55 4.77h5.02l-4.06 2.95 1.55 4.77L12 13.04l-4.06 2.95 1.55-4.77L5.43 8.27h5.02z"
+        fill="#c9a227" />
+    </svg>
+  )
+}
+
+const EVENT_META: Record<string, { icon: string; label: string; accent: string }> = {
+  goal:         { icon: '⚽', label: 'GOL',           accent: '#22c55e' },
+  yellow_card:  { icon: '🟨', label: 'SARI KART',     accent: '#eab308' },
+  red_card:     { icon: '🟥', label: 'KIRMIZI KART',  accent: '#ef4444' },
+  substitution: { icon: '🔄', label: 'DEĞİŞİKLİK',   accent: '#60a5fa' },
+  timeout:      { icon: '⏸', label: 'MOLA',           accent: '#a78bfa' },
 }
 
 export default function CanliYayin() {
@@ -35,34 +79,48 @@ export default function CanliYayin() {
   const [showIntro, setShowIntro] = useState(false)
   const [introFading, setIntroFading] = useState(false)
   const [muted, setMuted] = useState(true)
+  const [timerDisplay, setTimerDisplay] = useState('00:00')
+  const [events, setEvents] = useState<MatchEvent[]>([])
 
   const videoRef = useRef<HTMLVideoElement>(null)
   const socketRef = useRef<Socket | null>(null)
   const pcRef = useRef<RTCPeerConnection | null>(null)
+  const timerRef = useRef<TimerState>({ running: false, startedAt: null, elapsed: 0 })
+
+  // Timer display — recalculates locally every 250ms
+  useEffect(() => {
+    const iv = setInterval(() => {
+      const t = timerRef.current
+      const ms = t.running && t.startedAt ? t.elapsed + (Date.now() - t.startedAt) : t.elapsed
+      setTimerDisplay(formatTime(ms))
+    }, 250)
+    return () => clearInterval(iv)
+  }, [])
 
   useEffect(() => {
     const socket = io({ transports: ['websocket', 'polling'] })
     socketRef.current = socket
 
-    socket.on('live-status', ({ isLive: live, matchInfo: mi, scores: sc }: any) => {
+    socket.on('live-status', ({ isLive: live, matchInfo: mi, scores: sc, timer: t }: any) => {
       setLoading(false)
       if (live) {
         setIsLive(true)
         setMatchInfo(mi)
         setScores(sc || { home: 0, away: 0 })
-        // join as viewer
+        if (t) timerRef.current = t
         socket.emit('join-viewer')
       } else {
         setIsLive(false)
       }
     })
 
-    socket.on('match-updated', (mi: MatchInfo) => {
-      setMatchInfo(mi)
-    })
+    socket.on('match-updated', (mi: MatchInfo) => setMatchInfo(mi))
+    socket.on('score-updated', (sc: Scores) => setScores(sc))
+    socket.on('timer-updated', (t: TimerState) => { timerRef.current = t })
 
-    socket.on('score-updated', (sc: Scores) => {
-      setScores(sc)
+    socket.on('match-event', (event: MatchEvent) => {
+      setEvents(prev => [...prev.slice(-2), event])
+      setTimeout(() => setEvents(prev => prev.filter(e => e.id !== event.id)), 5500)
     })
 
     socket.on('broadcast-ended', () => {
@@ -70,61 +128,41 @@ export default function CanliYayin() {
       setMatchInfo(null)
       setScores({ home: 0, away: 0 })
       setShowIntro(false)
-      if (pcRef.current) {
-        pcRef.current.close()
-        pcRef.current = null
-      }
+      setEvents([])
+      timerRef.current = { running: false, startedAt: null, elapsed: 0 }
+      if (pcRef.current) { pcRef.current.close(); pcRef.current = null }
       if (videoRef.current) videoRef.current.srcObject = null
     })
 
-    socket.on('room-not-found', () => {
-      setIsLive(false)
-      setLoading(false)
-    })
+    socket.on('room-not-found', () => { setIsLive(false); setLoading(false) })
 
-    // WebRTC: receive offer from broadcaster
     socket.on('offer', async ({ senderId, offer }: any) => {
       const pc = new RTCPeerConnection(ICE_SERVERS)
       pcRef.current = pc
-
       pc.ontrack = (e) => {
         if (videoRef.current && e.streams[0]) {
           videoRef.current.srcObject = e.streams[0]
-          // show intro when stream starts
           setShowIntro(true)
           setTimeout(() => setIntroFading(true), 4000)
           setTimeout(() => setShowIntro(false), 5000)
         }
       }
-
       pc.onicecandidate = (e) => {
-        if (e.candidate) {
-          socket.emit('ice-candidate', { targetId: senderId, candidate: e.candidate })
-        }
+        if (e.candidate) socket.emit('ice-candidate', { targetId: senderId, candidate: e.candidate })
       }
-
       try {
         await pc.setRemoteDescription(offer)
         const answer = await pc.createAnswer()
         await pc.setLocalDescription(answer)
         socket.emit('answer', { targetId: senderId, answer })
-      } catch (err) {
-        console.error('Answer error:', err)
-      }
+      } catch (err) { console.error('Answer error:', err) }
     })
 
     socket.on('ice-candidate', async ({ candidate }: any) => {
-      try {
-        await pcRef.current?.addIceCandidate(candidate)
-      } catch (err) {
-        console.error('ICE error:', err)
-      }
+      try { await pcRef.current?.addIceCandidate(candidate) } catch (err) { console.error('ICE error:', err) }
     })
 
-    return () => {
-      socket.disconnect()
-      pcRef.current?.close()
-    }
+    return () => { socket.disconnect(); pcRef.current?.close() }
   }, [])
 
   function toggleMute() {
@@ -160,315 +198,282 @@ export default function CanliYayin() {
     )
   }
 
+  const branch = (matchInfo?.branch || '').toLowerCase()
+  const isFutbol = branch.includes('futbol') || branch.includes('football') || branch.includes('soccer')
+  const isVoleybol = branch.includes('voleybol') || branch.includes('volleyball')
+
   return (
     <div className="min-h-screen bg-gray-950 flex flex-col relative overflow-hidden">
       {/* Video */}
-      <video
-        ref={videoRef}
-        autoPlay
-        muted={muted}
-        playsInline
-        className="w-full h-screen object-cover absolute inset-0"
-      />
+      <video ref={videoRef} autoPlay muted={muted} playsInline
+        className="w-full h-screen object-cover absolute inset-0" />
 
-      {/* Mute button */}
-      <button
-        onClick={toggleMute}
-        className="absolute top-4 right-4 z-30 bg-black/50 hover:bg-black/70 text-white rounded-full p-2.5 backdrop-blur-sm transition-all"
-      >
+      {/* Mute button — sağ üst */}
+      <button onClick={toggleMute}
+        className="absolute top-4 right-4 z-30 bg-black/50 hover:bg-black/70 text-white rounded-full p-2.5 backdrop-blur-sm transition-all">
         {muted ? <VolumeX size={20} /> : <Volume2 size={20} />}
       </button>
 
-      {/* LIVE badge */}
-      <div className="absolute top-4 left-4 z-30 flex items-center gap-1.5 bg-red-600 text-white text-xs font-bold px-3 py-1.5 rounded-full shadow-lg">
+      {/* LIVE badge — scoreboard varsa sağda, yoksa solda */}
+      <div className={`absolute top-4 z-30 flex items-center gap-1.5 bg-red-600 text-white text-xs font-bold px-2.5 py-1.5 rounded-full shadow-lg ${(isFutbol || isVoleybol) ? 'right-16' : 'left-4'}`}>
         <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
         CANLI
       </div>
 
-      {/* ── 5-second intro overlay ── */}
+      {/* ── 5 saniyelik giriş overlay (değişmedi) ── */}
       {showIntro && matchInfo && (
-        <div
-          className="absolute inset-0 z-20 flex flex-col items-center justify-center"
+        <div className="absolute inset-0 z-20 flex flex-col items-center justify-center"
           style={{
             background: 'linear-gradient(135deg, rgba(0,0,0,0.92) 0%, rgba(10,20,60,0.92) 100%)',
             opacity: introFading ? 0 : 1,
             transition: introFading ? 'opacity 1s ease-out' : 'none',
-          }}
-        >
-          {/* Branch / category */}
+          }}>
           {(matchInfo.branch || matchInfo.category) && (
             <div className="text-secondary/80 text-xs font-semibold tracking-[0.3em] uppercase mb-8">
               {matchInfo.branch}{matchInfo.category ? ` • ${matchInfo.category}` : ''}
             </div>
           )}
-
-          {/* Teams row */}
           <div className="flex items-center gap-8 md:gap-16">
-            {/* Home */}
             <div className="flex flex-col items-center gap-3 animate-intro-left">
-              {matchInfo.homeLogo ? (
+              {matchInfo.homeLogo
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={matchInfo.homeLogo} alt="" className="w-20 h-20 md:w-28 md:h-28 object-contain drop-shadow-xl" />
-              ) : (
-                <div className="w-20 h-20 md:w-28 md:h-28 rounded-full bg-white/10 flex items-center justify-center text-white/30 text-3xl font-black">
-                  {matchInfo.homeTeam?.[0] || '?'}
-                </div>
-              )}
-              <span className="text-white font-black text-lg md:text-2xl text-center max-w-[140px] leading-tight drop-shadow-lg">
-                {matchInfo.homeTeam}
-              </span>
+                ? <img src={matchInfo.homeLogo} alt="" className="w-20 h-20 md:w-28 md:h-28 object-contain drop-shadow-xl" />
+                : <div className="w-20 h-20 md:w-28 md:h-28 rounded-full bg-white/10 flex items-center justify-center text-white/30 text-3xl font-black">{matchInfo.homeTeam?.[0] || '?'}</div>
+              }
+              <span className="text-white font-black text-lg md:text-2xl text-center max-w-[140px] leading-tight drop-shadow-lg">{matchInfo.homeTeam}</span>
             </div>
-
-            {/* VS */}
-            <div className="text-center">
-              <div className="text-white/30 text-2xl font-black tracking-widest">VS</div>
-            </div>
-
-            {/* Away */}
+            <div className="text-white/30 text-2xl font-black tracking-widest">VS</div>
             <div className="flex flex-col items-center gap-3 animate-intro-right">
-              {matchInfo.awayLogo ? (
+              {matchInfo.awayLogo
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={matchInfo.awayLogo} alt="" className="w-20 h-20 md:w-28 md:h-28 object-contain drop-shadow-xl" />
-              ) : (
-                <div className="w-20 h-20 md:w-28 md:h-28 rounded-full bg-white/10 flex items-center justify-center text-white/30 text-3xl font-black">
-                  {matchInfo.awayTeam?.[0] || '?'}
-                </div>
-              )}
-              <span className="text-white font-black text-lg md:text-2xl text-center max-w-[140px] leading-tight drop-shadow-lg">
-                {matchInfo.awayTeam}
-              </span>
+                ? <img src={matchInfo.awayLogo} alt="" className="w-20 h-20 md:w-28 md:h-28 object-contain drop-shadow-xl" />
+                : <div className="w-20 h-20 md:w-28 md:h-28 rounded-full bg-white/10 flex items-center justify-center text-white/30 text-3xl font-black">{matchInfo.awayTeam?.[0] || '?'}</div>
+              }
+              <span className="text-white font-black text-lg md:text-2xl text-center max-w-[140px] leading-tight drop-shadow-lg">{matchInfo.awayTeam}</span>
             </div>
           </div>
-
-          {/* Venue */}
-          {matchInfo.venue && (
-            <div className="mt-10 text-white/40 text-xs tracking-widest uppercase">
-              {matchInfo.venue}
-            </div>
-          )}
-
-          {/* Club name */}
-          <div className="mt-12 text-white/20 text-xs font-semibold tracking-[0.4em] uppercase">
-            EUGSK
-          </div>
+          {matchInfo.venue && <div className="mt-10 text-white/40 text-xs tracking-widest uppercase">{matchInfo.venue}</div>}
+          <div className="mt-12 text-white/20 text-xs font-semibold tracking-[0.4em] uppercase">EUGSK</div>
         </div>
       )}
 
-      {/* ── Persistent Scoreboard (branch-aware KJ) ── */}
-      {matchInfo && (() => {
-        const branch = (matchInfo.branch || '').toLowerCase()
-        const isFutbol = branch.includes('futbol') || branch.includes('football') || branch.includes('soccer')
-        const isVoleybol = branch.includes('voleybol') || branch.includes('volleyball') || branch.includes('volley')
+      {/* ════════════════════════════════════════════
+          KJ SCOREBOARD — SOL ÜST KÖŞE
+          + OLAY BİLDİRİMLERİ (hemen altında)
+          ════════════════════════════════════════════ */}
+      {matchInfo && (
+        <div className="absolute top-4 left-4 z-30 flex flex-col gap-1.5">
 
-        /* ── UCL / Futbol Stili ── */
-        if (isFutbol) {
-          return (
-            <div className="absolute bottom-0 left-0 right-0 z-30 flex justify-center pb-5 px-4 animate-kj-enter">
-              <div
-                className="relative flex items-stretch overflow-hidden shadow-2xl"
-                style={{
-                  borderRadius: '6px',
-                  border: '1px solid rgba(201,162,39,0.35)',
-                  background: 'rgba(0,12,40,0.82)',
-                  backdropFilter: 'blur(18px)',
-                  WebkitBackdropFilter: 'blur(18px)',
-                  boxShadow: '0 0 0 1px rgba(201,162,39,0.12), 0 20px 60px rgba(0,0,0,0.7)',
-                  minWidth: 'min(640px, 96vw)',
-                }}
-              >
-                {/* Altın üst çizgi */}
-                <div className="absolute top-0 left-0 right-0 h-[2px]"
-                  style={{ background: 'linear-gradient(90deg, transparent 0%, rgba(201,162,39,0.8) 20%, rgba(201,162,39,1) 50%, rgba(201,162,39,0.8) 80%, transparent 100%)' }} />
+          {/* ────────────────────────────────────────
+              UCL / FUTBOL SKORBORDU
+              Referans: 86:21 | ROM 1 | 0 DOR
+              ──────────────────────────────────────── */}
+          {isFutbol && (
+            <div className="animate-cev-slide-in flex items-stretch overflow-hidden"
+              style={{
+                borderRadius: '2px',
+                boxShadow: '0 4px 24px rgba(0,0,0,0.85), 0 0 0 1px rgba(201,162,39,0.18)',
+              }}>
 
-                {/* Ev sahibi */}
-                <div className="flex items-center gap-3 px-5 py-3 flex-1 min-w-0">
-                  {matchInfo.homeLogo ? (
+              {/* UCL yıldız + kronometre */}
+              <div className="flex items-center gap-2 px-3 py-2.5"
+                style={{ background: '#001344' }}>
+                <UCLStar />
+                <span className="font-black tabular-nums text-[13px] tracking-wider"
+                  style={{ color: '#c9a227', minWidth: '3rem', fontVariantNumeric: 'tabular-nums' }}>
+                  {timerDisplay}
+                </span>
+              </div>
+
+              {/* Dikey ayraç */}
+              <div style={{ width: '1px', background: 'rgba(201,162,39,0.25)' }} />
+
+              {/* Ev sahibi */}
+              <div className="flex items-center gap-2 px-3 py-2.5"
+                style={{ background: '#001344' }}>
+                {matchInfo.homeLogo && (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={matchInfo.homeLogo} alt="" style={{ width: 15, height: 15, objectFit: 'contain' }} />
+                )}
+                <span className="text-white font-black tracking-[0.12em]"
+                  style={{ fontSize: '13px' }}>
+                  {abbrev(matchInfo.homeTeam)}
+                </span>
+              </div>
+
+              {/* Skor */}
+              <div className="flex items-center gap-2.5 px-3.5 py-2.5"
+                style={{ background: '#071d4f' }}>
+                <span className="text-white font-black tabular-nums"
+                  style={{ fontSize: '1.1rem', lineHeight: 1 }}>
+                  {scores.home}
+                </span>
+                <span style={{ color: 'rgba(255,255,255,0.22)', fontWeight: 900, fontSize: '0.85rem' }}>|</span>
+                <span className="text-white font-black tabular-nums"
+                  style={{ fontSize: '1.1rem', lineHeight: 1 }}>
+                  {scores.away}
+                </span>
+              </div>
+
+              {/* Deplasman */}
+              <div className="flex items-center gap-2 px-3 py-2.5"
+                style={{ background: '#001344' }}>
+                <span className="text-white font-black tracking-[0.12em]"
+                  style={{ fontSize: '13px' }}>
+                  {abbrev(matchInfo.awayTeam)}
+                </span>
+                {matchInfo.awayLogo && (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={matchInfo.awayLogo} alt="" style={{ width: 15, height: 15, objectFit: 'contain' }} />
+                )}
+              </div>
+
+              {/* Altın şerit */}
+              <div style={{ width: '3px', background: 'linear-gradient(180deg,#c9a227 0%,#7a5e0e 100%)' }} />
+            </div>
+          )}
+
+          {/* ────────────────────────────────────────
+              VNL / VOLEYBOL SKORBORDU
+              Referans: [VNL] FRA 2 | 0
+                                SLO 0 | 8
+              ──────────────────────────────────────── */}
+          {isVoleybol && (
+            <div className="animate-cev-slide-in overflow-hidden"
+              style={{
+                borderRadius: '2px',
+                minWidth: '174px',
+                boxShadow: '0 4px 24px rgba(0,0,0,0.85)',
+              }}>
+
+              {/* Kırmızı başlık şeridi */}
+              <div className="flex items-center justify-between px-2.5 py-[3px]"
+                style={{ background: '#c41230' }}>
+                <span style={{ color: 'white', fontWeight: 900, fontSize: '9px', letterSpacing: '0.3em' }}>VNL</span>
+                <span style={{ color: 'rgba(255,255,255,0.65)', fontSize: '8px', fontWeight: 700, letterSpacing: '0.12em' }}>
+                  {(matchInfo.category || matchInfo.branch || '').toUpperCase().slice(0, 12)}
+                </span>
+              </div>
+
+              {/* Ev sahibi satırı */}
+              <div className="flex items-stretch" style={{ background: 'rgba(4,6,20,0.93)' }}>
+                <div className="flex items-center gap-1.5 px-2.5 py-[7px] flex-1 min-w-0">
+                  {matchInfo.homeLogo && (
                     // eslint-disable-next-line @next/next/no-img-element
-                    <img src={matchInfo.homeLogo} alt="" className="w-9 h-9 object-contain shrink-0 drop-shadow-lg" />
-                  ) : (
-                    <div className="w-9 h-9 rounded-full bg-white/10 shrink-0" />
+                    <img src={matchInfo.homeLogo} alt="" style={{ width: 13, height: 13, objectFit: 'contain', flexShrink: 0 }} />
                   )}
-                  <span className="text-white font-bold text-sm md:text-base tracking-wide truncate hidden sm:block"
-                    style={{ textShadow: '0 1px 8px rgba(0,0,0,0.6)', letterSpacing: '0.04em' }}>
-                    {matchInfo.homeTeam}
+                  <span className="text-white font-black tracking-[0.1em]"
+                    style={{ fontSize: '12px' }}>
+                    {abbrev(matchInfo.homeTeam)}
                   </span>
                 </div>
+                {/* Set sayısı */}
+                <div className="flex items-center justify-center font-black text-white"
+                  style={{ background: '#1b3d82', minWidth: '2.25rem', fontSize: '1rem', lineHeight: 1, padding: '0 8px' }}>
+                  {scores.homeSets ?? 0}
+                </div>
+                {/* Anlık sayı */}
+                <div className="flex items-center justify-center font-black text-white"
+                  style={{ background: 'rgba(255,255,255,0.06)', minWidth: '2.25rem', fontSize: '1rem', lineHeight: 1, padding: '0 8px', borderLeft: '1px solid rgba(255,255,255,0.06)' }}>
+                  {scores.home}
+                </div>
+              </div>
 
-                {/* Skor merkez */}
-                <div className="flex items-center shrink-0"
-                  style={{ background: 'rgba(0,18,51,0.7)', borderLeft: '1px solid rgba(201,162,39,0.2)', borderRight: '1px solid rgba(201,162,39,0.2)' }}>
-                  <div className="flex flex-col items-center px-6 py-2">
-                    {matchInfo.branch && (
-                      <span className="text-[10px] font-semibold tracking-[0.25em] uppercase mb-1"
-                        style={{ color: 'rgba(201,162,39,0.75)' }}>
-                        {matchInfo.branch}{matchInfo.category ? ` · ${matchInfo.category}` : ''}
+              {/* İnce ayraç */}
+              <div style={{ height: '1px', background: 'rgba(255,255,255,0.055)' }} />
+
+              {/* Deplasman satırı */}
+              <div className="flex items-stretch" style={{ background: 'rgba(4,6,20,0.93)' }}>
+                <div className="flex items-center gap-1.5 px-2.5 py-[7px] flex-1 min-w-0">
+                  {matchInfo.awayLogo && (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={matchInfo.awayLogo} alt="" style={{ width: 13, height: 13, objectFit: 'contain', flexShrink: 0 }} />
+                  )}
+                  <span className="text-white font-black tracking-[0.1em]"
+                    style={{ fontSize: '12px' }}>
+                    {abbrev(matchInfo.awayTeam)}
+                  </span>
+                </div>
+                <div className="flex items-center justify-center font-black text-white"
+                  style={{ background: '#1b3d82', minWidth: '2.25rem', fontSize: '1rem', lineHeight: 1, padding: '0 8px' }}>
+                  {scores.awaySets ?? 0}
+                </div>
+                <div className="flex items-center justify-center font-black text-white"
+                  style={{ background: 'rgba(255,255,255,0.06)', minWidth: '2.25rem', fontSize: '1rem', lineHeight: 1, padding: '0 8px', borderLeft: '1px solid rgba(255,255,255,0.06)' }}>
+                  {scores.away}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ────────────────────────────────────────
+              DEFAULT SKORBORDU (diğer branşlar)
+              ──────────────────────────────────────── */}
+          {!isFutbol && !isVoleybol && (
+            <div className="flex items-center gap-3 px-4 py-2.5"
+              style={{ borderRadius: '2px', background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(12px)', border: '1px solid rgba(255,255,255,0.08)' }}>
+              <div className="flex items-center gap-2 min-w-0">
+                {matchInfo.homeLogo
+                  // eslint-disable-next-line @next/next/no-img-element
+                  ? <img src={matchInfo.homeLogo} alt="" className="w-6 h-6 object-contain shrink-0" />
+                  : <div className="w-6 h-6 rounded bg-white/10 shrink-0" />}
+                <span className="text-white font-bold text-xs hidden sm:block truncate max-w-[80px]">{matchInfo.homeTeam}</span>
+              </div>
+              <div className="flex items-center gap-1.5 shrink-0">
+                <span className="text-white font-black text-lg tabular-nums w-6 text-center">{scores.home}</span>
+                <span className="text-white/30 font-black">-</span>
+                <span className="text-white font-black text-lg tabular-nums w-6 text-center">{scores.away}</span>
+              </div>
+              <div className="flex items-center gap-2 min-w-0">
+                <span className="text-white font-bold text-xs hidden sm:block truncate max-w-[80px]">{matchInfo.awayTeam}</span>
+                {matchInfo.awayLogo
+                  // eslint-disable-next-line @next/next/no-img-element
+                  ? <img src={matchInfo.awayLogo} alt="" className="w-6 h-6 object-contain shrink-0" />
+                  : <div className="w-6 h-6 rounded bg-white/10 shrink-0" />}
+              </div>
+            </div>
+          )}
+
+          {/* ────────────────────────────────────────
+              OLAY BİLDİRİMLERİ (scoreboardun hemen altı)
+              Gol, Kart, Değişiklik — aynı temada
+              ──────────────────────────────────────── */}
+          <div className="flex flex-col gap-1">
+            {events.map(event => {
+              const meta = EVENT_META[event.type] || EVENT_META.goal
+              const teamName = event.team === 'home' ? matchInfo.homeTeam : matchInfo.awayTeam
+              const scoreboard_bg = isFutbol ? '#001344' : isVoleybol ? 'rgba(4,6,20,0.93)' : 'rgba(0,0,0,0.82)'
+              return (
+                <div key={event.id}
+                  className="animate-event-slide flex items-center gap-2.5 overflow-hidden"
+                  style={{
+                    borderRadius: '2px',
+                    background: scoreboard_bg,
+                    boxShadow: '0 4px 16px rgba(0,0,0,0.7)',
+                    borderLeft: `3px solid ${meta.accent}`,
+                    padding: '6px 10px 6px 8px',
+                  }}>
+                  <span style={{ fontSize: '14px', lineHeight: 1 }}>{meta.icon}</span>
+                  <div className="flex flex-col leading-none gap-0.5">
+                    <span className="text-white font-black tracking-[0.15em] uppercase"
+                      style={{ fontSize: '10px' }}>
+                      {meta.label}
+                    </span>
+                    {(event.player || event.playerOut) && (
+                      <span style={{ color: 'rgba(255,255,255,0.55)', fontSize: '9px', fontWeight: 600 }}>
+                        {event.type === 'substitution'
+                          ? `${event.playerOut ?? ''} → ${event.playerIn ?? ''}`
+                          : `${event.player ?? ''}  ·  ${abbrev(teamName)}`}
                       </span>
                     )}
-                    <div className="flex items-center gap-3">
-                      <span className="text-white font-black tabular-nums"
-                        style={{ fontSize: 'clamp(1.5rem,3vw,2rem)', textShadow: '0 0 20px rgba(201,162,39,0.4)' }}>
-                        {scores.home}
-                      </span>
-                      <span style={{ color: 'rgba(201,162,39,0.5)', fontWeight: 900, fontSize: '1.1rem' }}>:</span>
-                      <span className="text-white font-black tabular-nums"
-                        style={{ fontSize: 'clamp(1.5rem,3vw,2rem)', textShadow: '0 0 20px rgba(201,162,39,0.4)' }}>
-                        {scores.away}
-                      </span>
-                    </div>
                   </div>
                 </div>
-
-                {/* Deplasman */}
-                <div className="flex items-center gap-3 px-5 py-3 flex-1 min-w-0 justify-end">
-                  <span className="text-white font-bold text-sm md:text-base tracking-wide truncate hidden sm:block"
-                    style={{ textShadow: '0 1px 8px rgba(0,0,0,0.6)', letterSpacing: '0.04em' }}>
-                    {matchInfo.awayTeam}
-                  </span>
-                  {matchInfo.awayLogo ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={matchInfo.awayLogo} alt="" className="w-9 h-9 object-contain shrink-0 drop-shadow-lg" />
-                  ) : (
-                    <div className="w-9 h-9 rounded-full bg-white/10 shrink-0" />
-                  )}
-                </div>
-
-                {/* Alt lacivert gölge çizgisi */}
-                <div className="absolute bottom-0 left-0 right-0 h-[1px]"
-                  style={{ background: 'linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.06) 50%, transparent 100%)' }} />
-              </div>
-            </div>
-          )
-        }
-
-        /* ── CEV / Voleybol Stili ── */
-        if (isVoleybol) {
-          return (
-            <div className="absolute bottom-0 left-0 right-0 z-30 pb-4 px-4 flex justify-center animate-cev-slide-in">
-              <div className="flex items-stretch overflow-hidden shadow-2xl"
-                style={{ borderRadius: '4px', minWidth: 'min(620px, 96vw)' }}>
-
-                {/* Sol şerit - Ev sahibi */}
-                <div className="flex items-center gap-3 px-4 py-3 flex-1 min-w-0"
-                  style={{ background: 'rgba(15,15,15,0.92)', borderRight: '2px solid rgba(220,38,38,0.8)' }}>
-                  {matchInfo.homeLogo ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={matchInfo.homeLogo} alt="" className="w-8 h-8 object-contain shrink-0" />
-                  ) : (
-                    <div className="w-8 h-8 rounded bg-white/10 shrink-0" />
-                  )}
-                  <span className="text-white font-black text-sm md:text-base uppercase tracking-widest truncate hidden sm:block">
-                    {matchInfo.homeTeam}
-                  </span>
-                </div>
-
-                {/* Merkez set kutusu */}
-                <div className="flex items-center shrink-0"
-                  style={{ background: 'rgba(220,38,38,0.93)' }}>
-                  <div className="flex flex-col items-center px-1">
-                    {/* SET etiketi */}
-                    <div className="flex items-center gap-1 px-3 pt-1 pb-0.5">
-                      <span className="text-white/70 text-[9px] font-bold tracking-[0.3em] uppercase">SET</span>
-                    </div>
-                    {/* Skor kutucukları */}
-                    <div className="flex items-center gap-1 px-3 pb-2">
-                      <div className="flex flex-col items-center justify-center rounded"
-                        style={{ background: 'rgba(0,0,0,0.35)', minWidth: '2.2rem', padding: '2px 8px' }}>
-                        <span className="text-white font-black tabular-nums leading-none"
-                          style={{ fontSize: 'clamp(1.4rem,2.8vw,1.9rem)' }}>
-                          {scores.home}
-                        </span>
-                      </div>
-                      <span className="text-white/50 font-black text-base">-</span>
-                      <div className="flex flex-col items-center justify-center rounded"
-                        style={{ background: 'rgba(0,0,0,0.35)', minWidth: '2.2rem', padding: '2px 8px' }}>
-                        <span className="text-white font-black tabular-nums leading-none"
-                          style={{ fontSize: 'clamp(1.4rem,2.8vw,1.9rem)' }}>
-                          {scores.away}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Sağ şerit - Deplasman */}
-                <div className="flex items-center gap-3 px-4 py-3 flex-1 min-w-0 justify-end"
-                  style={{ background: 'rgba(15,15,15,0.92)', borderLeft: '2px solid rgba(220,38,38,0.8)' }}>
-                  <span className="text-white font-black text-sm md:text-base uppercase tracking-widest truncate hidden sm:block">
-                    {matchInfo.awayTeam}
-                  </span>
-                  {matchInfo.awayLogo ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={matchInfo.awayLogo} alt="" className="w-8 h-8 object-contain shrink-0" />
-                  ) : (
-                    <div className="w-8 h-8 rounded bg-white/10 shrink-0" />
-                  )}
-                </div>
-
-                {/* Kategori etiketi sağda */}
-                {matchInfo.category && (
-                  <div className="flex items-center px-3 shrink-0"
-                    style={{ background: 'rgba(220,38,38,0.75)' }}>
-                    <span className="text-white/80 text-[10px] font-bold tracking-[0.2em] uppercase"
-                      style={{ writingMode: 'vertical-rl', textOrientation: 'mixed', transform: 'rotate(180deg)' }}>
-                      {matchInfo.category}
-                    </span>
-                  </div>
-                )}
-              </div>
-            </div>
-          )
-        }
-
-        /* ── Default Stili (Futbol/Voleybol dışı branşlar) ── */
-        return (
-          <div className="absolute bottom-0 left-0 right-0 z-30 flex justify-center pb-4 px-4">
-            <div
-              className="flex items-center gap-3 md:gap-6 px-4 md:px-8 py-3 rounded-2xl shadow-2xl"
-              style={{ background: 'rgba(0,0,0,0.72)', backdropFilter: 'blur(12px)', border: '1px solid rgba(255,255,255,0.08)' }}
-            >
-              {/* Home team */}
-              <div className="flex items-center gap-2 min-w-0">
-                {matchInfo.homeLogo ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={matchInfo.homeLogo} alt="" className="w-7 h-7 object-contain shrink-0" />
-                ) : (
-                  <div className="w-7 h-7 rounded bg-white/10 shrink-0" />
-                )}
-                <span className="text-white font-bold text-sm hidden sm:block truncate max-w-[100px]">
-                  {matchInfo.homeTeam}
-                </span>
-              </div>
-
-              {/* Score */}
-              <div className="flex items-center gap-2 shrink-0">
-                <span className="text-white font-black text-2xl md:text-3xl tabular-nums w-8 text-center">{scores.home}</span>
-                <span className="text-white/30 font-black text-xl">-</span>
-                <span className="text-white font-black text-2xl md:text-3xl tabular-nums w-8 text-center">{scores.away}</span>
-              </div>
-
-              {/* Away team */}
-              <div className="flex items-center gap-2 min-w-0">
-                <span className="text-white font-bold text-sm hidden sm:block truncate max-w-[100px]">
-                  {matchInfo.awayTeam}
-                </span>
-                {matchInfo.awayLogo ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={matchInfo.awayLogo} alt="" className="w-7 h-7 object-contain shrink-0" />
-                ) : (
-                  <div className="w-7 h-7 rounded bg-white/10 shrink-0" />
-                )}
-              </div>
-
-              {/* Branch badge */}
-              {matchInfo.branch && (
-                <div className="hidden md:block text-white/40 text-xs border-l border-white/10 pl-4 ml-2">
-                  {matchInfo.branch}{matchInfo.category ? ` • ${matchInfo.category}` : ''}
-                </div>
-              )}
-            </div>
+              )
+            })}
           </div>
-        )
-      })()}
+
+        </div>
+      )}
     </div>
   )
 }
