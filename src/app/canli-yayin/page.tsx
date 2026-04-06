@@ -27,6 +27,8 @@ interface Scores {
   away: number
   homeSets?: number
   awaySets?: number
+  homeRedCards?: number
+  awayRedCards?: number
 }
 
 interface TimerState {
@@ -45,7 +47,18 @@ interface MatchEvent {
 }
 
 function abbrev(name: string): string {
-  return (name || '???').slice(0, 3).toUpperCase()
+  return (name || '????').slice(0, 4).toUpperCase()
+}
+
+function RedCards({ count }: { count?: number }) {
+  if (!count || count <= 0) return null
+  return (
+    <span className="flex items-center gap-0.5 ml-1">
+      {Array.from({ length: Math.min(count, 3) }).map((_, i) => (
+        <span key={i} style={{ display: 'inline-block', width: 6, height: 9, background: '#ef4444', borderRadius: '1px', flexShrink: 0 }} />
+      ))}
+    </span>
+  )
 }
 
 function formatTime(ms: number): string {
@@ -299,6 +312,7 @@ export default function CanliYayin() {
                   style={{ fontSize: '13px' }}>
                   {abbrev(matchInfo.homeTeam)}
                 </span>
+                <RedCards count={scores.homeRedCards} />
               </div>
 
               {/* Skor */}
@@ -318,6 +332,7 @@ export default function CanliYayin() {
               {/* Deplasman */}
               <div className="flex items-center gap-2 px-3 py-2.5"
                 style={{ background: '#001344' }}>
+                <RedCards count={scores.awayRedCards} />
                 <span className="text-white font-black tracking-[0.12em]"
                   style={{ fontSize: '13px' }}>
                   {abbrev(matchInfo.awayTeam)}
@@ -366,6 +381,7 @@ export default function CanliYayin() {
                     style={{ fontSize: '12px' }}>
                     {abbrev(matchInfo.homeTeam)}
                   </span>
+                  <RedCards count={scores.homeRedCards} />
                 </div>
                 {/* Set sayısı */}
                 <div className="flex items-center justify-center font-black text-white"
@@ -393,6 +409,7 @@ export default function CanliYayin() {
                     style={{ fontSize: '12px' }}>
                     {abbrev(matchInfo.awayTeam)}
                   </span>
+                  <RedCards count={scores.awayRedCards} />
                 </div>
                 <div className="flex items-center justify-center font-black text-white"
                   style={{ background: '#1b3d82', minWidth: '2.25rem', fontSize: '1rem', lineHeight: 1, padding: '0 8px' }}>

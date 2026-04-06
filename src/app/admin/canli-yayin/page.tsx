@@ -34,8 +34,9 @@ const defaultMatchInfo: MatchInfo = {
 export default function AdminCanliYayin() {
   const [isLive, setIsLive] = useState(false)
   const [viewerCount, setViewerCount] = useState(0)
-  const [scores, setScores] = useState({ home: 0, away: 0, homeSets: 0, awaySets: 0 })
+  const [scores, setScores] = useState({ home: 0, away: 0, homeSets: 0, awaySets: 0, homeRedCards: 0, awayRedCards: 0 })
   const [matchInfo, setMatchInfo] = useState<MatchInfo>(defaultMatchInfo)
+  const [branches, setBranches] = useState<{ id: string; name: string }[]>([])
   const [mediaMode, setMediaMode] = useState<'camera' | 'screen'>('camera')
   const [starting, setStarting] = useState(false)
   const [videoDevices, setVideoDevices] = useState<MediaDeviceInfo[]>([])
@@ -58,6 +59,13 @@ export default function AdminCanliYayin() {
   const streamRef = useRef<MediaStream | null>(null)
   const videoRef = useRef<HTMLVideoElement>(null)
   const peersRef = useRef<Record<string, RTCPeerConnection>>({})
+
+  // ── Branşları yükle ────────────────────────────────
+  useEffect(() => {
+    fetch('/api/branslar').then(r => r.json()).then(data => {
+      if (Array.isArray(data)) setBranches(data)
+    }).catch(() => {})
+  }, [])
 
   // ── Timer ──────────────────────────────────────────
   function formatTime(ms: number) {
@@ -102,9 +110,30 @@ export default function AdminCanliYayin() {
   // ── Match event gönder ──────────────────────────────
   function sendMatchEvent() {
     if (!eventForm) return
+    const { type, team } = eventForm
+
+    // Gol → skoru otomatik artır
+    if (type === 'goal') {
+      setScores(prev => {
+        const next = { ...prev, [team]: prev[team] + 1 }
+        socketRef.current?.emit('update-score', next)
+        return next
+      })
+    }
+
+    // Kırmızı kart → kart sayacını artır
+    if (type === 'red_card') {
+      setScores(prev => {
+        const field = team === 'home' ? 'homeRedCards' : 'awayRedCards'
+        const next = { ...prev, [field]: (prev[field] ?? 0) + 1 }
+        socketRef.current?.emit('update-score', next)
+        return next
+      })
+    }
+
     socketRef.current?.emit('match-event', {
-      type: eventForm.type,
-      team: eventForm.team,
+      type,
+      team,
       player: eventPlayer || undefined,
       playerOut: eventPlayerOut || undefined,
       playerIn: eventPlayerIn || undefined,
@@ -277,7 +306,7 @@ export default function AdminCanliYayin() {
     socketRef.current?.emit('stop-broadcast')
     setIsLive(false)
     setViewerCount(0)
-    setScores({ home: 0, away: 0 })
+    setScores({ home: 0, away: 0, homeSets: 0, awaySets: 0, homeRedCards: 0, awayRedCards: 0 })
     toast('Yayın durduruldu')
   }
 
@@ -369,9 +398,14 @@ export default function AdminCanliYayin() {
             <div className="grid grid-cols-3 gap-3">
               <div>
                 <label className="form-label">Branş</label>
-                <input type="text" value={matchInfo.branch}
+                <select value={matchInfo.branch}
                   onChange={e => handleMatchField('branch', e.target.value)}
-                  className="form-input" placeholder="Futbol" />
+                  className="form-input">
+                  <option value="">— Seç —</option>
+                  {branches.map(b => (
+                    <option key={b.id} value={b.name}>{b.name}</option>
+                  ))}
+                </select>
               </div>
               <div>
                 <label className="form-label">Kategori</label>
