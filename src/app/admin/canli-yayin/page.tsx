@@ -5,7 +5,7 @@ import { io, Socket } from 'socket.io-client'
 import AdminHeader from '@/components/admin/AdminHeader'
 import Button from '@/components/ui/Button'
 import ImageUpload from '@/components/ui/ImageUpload'
-import { Radio, Square, Users, Monitor, Camera, ExternalLink } from 'lucide-react'
+import { Radio, Square, Users, Monitor, Camera, ExternalLink, Mic, RefreshCw } from 'lucide-react'
 import toast from 'react-hot-toast'
 
 const ICE_SERVERS = {
@@ -38,11 +38,75 @@ export default function AdminCanliYayin() {
   const [matchInfo, setMatchInfo] = useState<MatchInfo>(defaultMatchInfo)
   const [mediaMode, setMediaMode] = useState<'camera' | 'screen'>('camera')
   const [starting, setStarting] = useState(false)
+  const [videoDevices, setVideoDevices] = useState<MediaDeviceInfo[]>([])
+  const [audioDevices, setAudioDevices] = useState<MediaDeviceInfo[]>([])
+  const [selectedCamera, setSelectedCamera] = useState<string>('')
+  const [selectedMic, setSelectedMic] = useState<string>('')
+  const [switchingDevice, setSwitchingDevice] = useState(false)
 
   const socketRef = useRef<Socket | null>(null)
   const streamRef = useRef<MediaStream | null>(null)
   const videoRef = useRef<HTMLVideoElement>(null)
   const peersRef = useRef<Record<string, RTCPeerConnection>>({})
+
+  // Cihaz listesini yükle
+  const loadDevices = useCallback(async () => {
+    try {
+      // Önce izin iste (etiketler yalnızca izin sonrası görünür)
+      await navigator.mediaDevices.getUserMedia({ video: true, audio: true }).then(s => s.getTracks().forEach(t => t.stop())).catch(() => {})
+      const devices = await navigator.mediaDevices.enumerateDevices()
+      const videos = devices.filter(d => d.kind === 'videoinput')
+      const audios = devices.filter(d => d.kind === 'audioinput')
+      setVideoDevices(videos)
+      setAudioDevices(audios)
+      if (videos.length > 0 && !selectedCamera) setSelectedCamera(videos[0].deviceId)
+      if (audios.length > 0 && !selectedMic) setSelectedMic(audios[0].deviceId)
+    } catch {
+      // izin reddedilirse sessizce geç
+    }
+  }, [selectedCamera, selectedMic])
+
+  useEffect(() => {
+    loadDevices()
+    navigator.mediaDevices.addEventListener('devicechange', loadDevices)
+    return () => navigator.mediaDevices.removeEventListener('devicechange', loadDevices)
+  }, [loadDevices])
+
+  // Yayın canlıyken cihaz değiştir (yayını kesmeden)
+  const switchDevice = useCallback(async (type: 'video' | 'audio', deviceId: string) => {
+    if (!isLive || !streamRef.current) return
+    setSwitchingDevice(true)
+    try {
+      const constraints = type === 'video'
+        ? { video: { deviceId: { exact: deviceId }, width: { ideal: 1920 }, height: { ideal: 1080 }, frameRate: { ideal: 30 } }, audio: false }
+        : { video: false, audio: { deviceId: { exact: deviceId } } }
+      const newStream = await navigator.mediaDevices.getUserMedia(constraints as MediaStreamConstraints)
+      const newTrack = newStream.getTracks()[0]
+
+      // Tüm peer bağlantılarında track'i değiştir
+      Object.values(peersRef.current).forEach(pc => {
+        const sender = pc.getSenders().find(s => s.track?.kind === newTrack.kind)
+        sender?.replaceTrack(newTrack)
+      })
+
+      // Mevcut stream'deki eski track'i durdur ve yenisiyle değiştir
+      const oldTrack = streamRef.current.getTracks().find(t => t.kind === newTrack.kind)
+      if (oldTrack) {
+        streamRef.current.removeTrack(oldTrack)
+        oldTrack.stop()
+      }
+      streamRef.current.addTrack(newTrack)
+
+      // Preview güncelle
+      if (videoRef.current && type === 'video') {
+        videoRef.current.srcObject = streamRef.current
+      }
+    } catch (err: any) {
+      toast.error('Cihaz geçişi başarısız: ' + (err.message || ''))
+    } finally {
+      setSwitchingDevice(false)
+    }
+  }, [isLive])
 
   // Socket setup
   useEffect(() => {
@@ -108,9 +172,16 @@ export default function AdminCanliYayin() {
           audio: true,
         })
       } else {
+        const videoConstraints: MediaTrackConstraints = {
+          width: { ideal: 1920 }, height: { ideal: 1080 }, frameRate: { ideal: 30 },
+        }
+        if (selectedCamera) videoConstraints.deviceId = { exact: selectedCamera }
+        const audioConstraints: boolean | MediaTrackConstraints = selectedMic
+          ? { deviceId: { exact: selectedMic } }
+          : true
         stream = await navigator.mediaDevices.getUserMedia({
-          video: { width: { ideal: 1920 }, height: { ideal: 1080 }, frameRate: { ideal: 30 } },
-          audio: true,
+          video: videoConstraints,
+          audio: audioConstraints,
         })
       }
       streamRef.current = stream
@@ -298,6 +369,79 @@ export default function AdminCanliYayin() {
                   className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-medium transition-all ${mediaMode === 'screen' ? 'bg-primary text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
                   <Monitor size={15} /> Ekran
                 </button>
+              </div>
+            )}
+
+            {/* Harici cihaz seçimi — sadece kamera modunda */}
+            {mediaMode === 'camera' && (
+              <div className="bg-gray-50 rounded-xl border border-gray-200 p-3 space-y-2">
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Cihaz Seçimi</span>
+                  <button
+                    onClick={loadDevices}
+                    title="Cihazları yenile"
+                    className="text-gray-400 hover:text-primary transition-colors p-0.5 rounded"
+                  >
+                    <RefreshCw size={13} />
+                  </button>
+                </div>
+
+                {/* Kamera seç */}
+                <div>
+                  <label className="flex items-center gap-1.5 text-xs text-gray-500 mb-1">
+                    <Camera size={11} /> Kamera
+                  </label>
+                  <select
+                    value={selectedCamera}
+                    onChange={e => {
+                      setSelectedCamera(e.target.value)
+                      if (isLive) switchDevice('video', e.target.value)
+                    }}
+                    disabled={switchingDevice}
+                    className="w-full text-xs rounded-lg border border-gray-200 bg-white px-2.5 py-2 text-gray-700 focus:outline-none focus:ring-2 focus:ring-primary/30 disabled:opacity-50 disabled:cursor-wait"
+                  >
+                    {videoDevices.length === 0
+                      ? <option value="">— Cihaz bulunamadı —</option>
+                      : videoDevices.map(d => (
+                          <option key={d.deviceId} value={d.deviceId}>
+                            {d.label || `Kamera ${videoDevices.indexOf(d) + 1}`}
+                          </option>
+                        ))
+                    }
+                  </select>
+                </div>
+
+                {/* Mikrofon seç */}
+                <div>
+                  <label className="flex items-center gap-1.5 text-xs text-gray-500 mb-1">
+                    <Mic size={11} /> Mikrofon
+                  </label>
+                  <select
+                    value={selectedMic}
+                    onChange={e => {
+                      setSelectedMic(e.target.value)
+                      if (isLive) switchDevice('audio', e.target.value)
+                    }}
+                    disabled={switchingDevice}
+                    className="w-full text-xs rounded-lg border border-gray-200 bg-white px-2.5 py-2 text-gray-700 focus:outline-none focus:ring-2 focus:ring-primary/30 disabled:opacity-50 disabled:cursor-wait"
+                  >
+                    {audioDevices.length === 0
+                      ? <option value="">— Cihaz bulunamadı —</option>
+                      : audioDevices.map(d => (
+                          <option key={d.deviceId} value={d.deviceId}>
+                            {d.label || `Mikrofon ${audioDevices.indexOf(d) + 1}`}
+                          </option>
+                        ))
+                    }
+                  </select>
+                </div>
+
+                {switchingDevice && (
+                  <p className="text-[10px] text-primary/70 text-center animate-pulse">Cihaz değiştiriliyor...</p>
+                )}
+                {isLive && !switchingDevice && (
+                  <p className="text-[10px] text-green-600 text-center">Yayın kesilmeden cihaz değiştirilebilir</p>
+                )}
               </div>
             )}
 

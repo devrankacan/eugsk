@@ -48,10 +48,32 @@ module.exports = {
           '0%': { opacity: '0', transform: 'translateX(40px)' },
           '100%': { opacity: '1', transform: 'translateX(0)' },
         },
+        'kj-enter': {
+          '0%': { opacity: '0', transform: 'translateY(24px)' },
+          '100%': { opacity: '1', transform: 'translateY(0)' },
+        },
+        'kj-score-pop': {
+          '0%': { transform: 'scale(1)' },
+          '40%': { transform: 'scale(1.18)' },
+          '100%': { transform: 'scale(1)' },
+        },
+        'cev-slide-in': {
+          '0%': { opacity: '0', transform: 'translateX(-48px)' },
+          '100%': { opacity: '1', transform: 'translateX(0)' },
+        },
+        'cev-flash': {
+          '0%': { backgroundColor: 'rgba(255,255,255,0.0)' },
+          '30%': { backgroundColor: 'rgba(255,255,255,0.18)' },
+          '100%': { backgroundColor: 'rgba(255,255,255,0.0)' },
+        },
       },
       animation: {
         'intro-left': 'intro-left 0.7s ease-out forwards',
         'intro-right': 'intro-right 0.7s ease-out forwards',
+        'kj-enter': 'kj-enter 0.6s ease-out forwards',
+        'kj-score-pop': 'kj-score-pop 0.35s ease-in-out forwards',
+        'cev-slide-in': 'cev-slide-in 0.4s cubic-bezier(0.22,1,0.36,1) forwards',
+        'cev-flash': 'cev-flash 0.5s ease-out forwards',
       },
     },
   },
