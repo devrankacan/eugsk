@@ -47,7 +47,7 @@ interface MatchEvent {
 }
 
 function abbrev(name: string): string {
-  return (name || '????').slice(0, 4).toUpperCase()
+  return (name || '?????').slice(0, 5).toUpperCase()
 }
 
 function RedCards({ count }: { count?: number }) {
@@ -227,8 +227,8 @@ export default function CanliYayin() {
         {muted ? <VolumeX size={20} /> : <Volume2 size={20} />}
       </button>
 
-      {/* LIVE badge — scoreboard varsa sağda, yoksa solda */}
-      <div className={`absolute top-4 z-30 flex items-center gap-1.5 bg-red-600 text-white text-xs font-bold px-2.5 py-1.5 rounded-full shadow-lg ${(isFutbol || isVoleybol) ? 'right-16' : 'left-4'}`}>
+      {/* LIVE badge — her zaman sağ üst (mute butonunun solunda) */}
+      <div className="absolute top-4 right-16 z-30 flex items-center gap-1.5 bg-red-600 text-white text-xs font-bold px-2.5 py-1.5 rounded-full shadow-lg">
         <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
         CANLI
       </div>

@@ -4,8 +4,9 @@ import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { useSession, signOut } from 'next-auth/react'
-import { Menu, X, ChevronDown, User, LogOut, Settings, Search } from 'lucide-react'
+import { Menu, X, ChevronDown, User, LogOut, Settings, Search, Radio } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { io } from 'socket.io-client'
 
 const staticNavLinks = [
   { href: '/', label: 'Ana Sayfa' },
@@ -25,6 +26,7 @@ export default function Header() {
   const [searchOpen, setSearchOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [branches, setBranches] = useState<{ id: string; name: string; slug: string }[]>([])
+  const [isStreamLive, setIsStreamLive] = useState(false)
   const mobileRef = useRef<HTMLDivElement>(null)
   const searchInputRef = useRef<HTMLInputElement>(null)
 
@@ -38,6 +40,13 @@ export default function Header() {
     fetch('/api/branslar').then(r => r.json()).then(d => {
       if (Array.isArray(d)) setBranches(d)
     }).catch(() => {})
+  }, [])
+
+  useEffect(() => {
+    const socket = io({ transports: ['websocket', 'polling'] })
+    socket.on('live-status', ({ isLive }: { isLive: boolean }) => setIsStreamLive(isLive))
+    socket.on('broadcast-ended', () => setIsStreamLive(false))
+    return () => { socket.disconnect() }
   }, [])
 
   useEffect(() => {
@@ -147,6 +156,14 @@ export default function Header() {
                   </div>
                 )}
               </div>
+
+              <Link href="/canli-yayin"
+                className="flex items-center gap-1.5 px-3 py-2 rounded text-sm font-medium text-gray-200 hover:text-secondary hover:bg-white/10 transition-all">
+                {isStreamLive
+                  ? <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse shrink-0" />
+                  : <Radio size={13} className="shrink-0 opacity-60" />}
+                Canlı Yayın
+              </Link>
 
               <Link href="/iletisim" className="px-3 py-2 rounded text-sm font-medium text-gray-200 hover:text-secondary hover:bg-white/10 transition-all">
                 İletişim
@@ -296,6 +313,14 @@ export default function Header() {
               ))}
             </div>
           )}
+
+          <Link href="/canli-yayin" onClick={() => setMobileOpen(false)}
+            className="flex items-center gap-2 px-4 py-3 rounded-lg text-sm font-medium text-gray-200 hover:bg-white/10 hover:text-secondary transition-all">
+            {isStreamLive
+              ? <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse shrink-0" />
+              : <Radio size={14} className="shrink-0 opacity-60" />}
+            Canlı Yayın
+          </Link>
 
           <Link href="/iletisim" onClick={() => setMobileOpen(false)}
             className="block px-4 py-3 rounded-lg text-sm font-medium text-gray-200 hover:bg-white/10 hover:text-secondary transition-all">
