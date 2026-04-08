@@ -25,6 +25,7 @@ export default function Header() {
   const [searchOpen, setSearchOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [branches, setBranches] = useState<{ id: string; name: string; slug: string }[]>([])
+  const [isStreamLive, setIsStreamLive] = useState(false)
   const mobileRef = useRef<HTMLDivElement>(null)
   const searchInputRef = useRef<HTMLInputElement>(null)
 
@@ -38,6 +39,16 @@ export default function Header() {
     fetch('/api/branslar').then(r => r.json()).then(d => {
       if (Array.isArray(d)) setBranches(d)
     }).catch(() => {})
+  }, [])
+
+  useEffect(() => {
+    let socket: any = null
+    import('socket.io-client').then(({ io }) => {
+      socket = io({ transports: ['websocket', 'polling'] })
+      socket.on('live-status', ({ isLive }: { isLive: boolean }) => setIsStreamLive(isLive))
+      socket.on('broadcast-ended', () => setIsStreamLive(false))
+    })
+    return () => { socket?.disconnect() }
   }, [])
 
   useEffect(() => {
@@ -141,11 +152,23 @@ export default function Header() {
                 İletişim
               </Link>
 
-              <Link href="/canli-yayin" className="flex items-center gap-1.5 ml-2 px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-semibold transition-all">
-                <span className="relative flex h-2 w-2">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75" />
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-white" />
-                </span>
+              <Link
+                href="/canli-yayin"
+                className={cn(
+                  'flex items-center gap-1.5 ml-2 px-3 py-1.5 rounded-lg text-sm font-semibold transition-all',
+                  isStreamLive
+                    ? 'bg-red-600 hover:bg-red-700 text-white'
+                    : 'bg-white/10 hover:bg-white/20 text-gray-200'
+                )}
+              >
+                {isStreamLive ? (
+                  <span className="relative flex h-2 w-2 shrink-0">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75" />
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-white" />
+                  </span>
+                ) : (
+                  <Radio size={14} className="shrink-0" />
+                )}
                 Canlı Yayın
               </Link>
             </div>
@@ -299,12 +322,24 @@ export default function Header() {
             İletişim
           </Link>
 
-          <Link href="/canli-yayin" onClick={() => setMobileOpen(false)}
-            className="flex items-center gap-2 px-4 py-3 rounded-lg text-sm font-semibold bg-red-600 hover:bg-red-700 text-white transition-all mt-2">
-            <span className="relative flex h-2 w-2">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75" />
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-white" />
-            </span>
+          <Link
+            href="/canli-yayin"
+            onClick={() => setMobileOpen(false)}
+            className={cn(
+              'flex items-center gap-2 px-4 py-3 rounded-lg text-sm font-semibold transition-all mt-2',
+              isStreamLive
+                ? 'bg-red-600 hover:bg-red-700 text-white'
+                : 'bg-white/10 hover:bg-white/20 text-gray-200'
+            )}
+          >
+            {isStreamLive ? (
+              <span className="relative flex h-2 w-2 shrink-0">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75" />
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-white" />
+              </span>
+            ) : (
+              <Radio size={14} className="shrink-0" />
+            )}
             Canlı Yayın
           </Link>
         </nav>
