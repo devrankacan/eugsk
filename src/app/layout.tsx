@@ -3,6 +3,7 @@ import './globals.css'
 import { Toaster } from 'react-hot-toast'
 import { Providers } from './providers'
 import PageTracker from '@/components/PageTracker'
+import { prisma } from '@/lib/prisma'
 
 export const metadata: Metadata = {
   title: 'Erzurum Üniversiteli Gençler SK',
@@ -10,15 +11,17 @@ export const metadata: Metadata = {
   keywords: 'Erzurum, spor kulübü, futbol, basketbol, voleybol, atletizm',
 }
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
+  const siteSettings = await prisma.siteSettings.findFirst().catch(() => null)
+
   return (
     <html lang="tr">
       <body suppressHydrationWarning>
-        <Providers>
+        <Providers siteSettings={siteSettings}>
           <PageTracker />
           {children}
           <Toaster

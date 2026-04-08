@@ -1,20 +1,14 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import Link from 'next/link'
 import { Mail, Phone, MapPin, Facebook, Instagram, Youtube, Send } from 'lucide-react'
 import toast from 'react-hot-toast'
+import { useSiteSettings } from '@/lib/site-settings-context'
 
 export default function Footer() {
-  const [settings, setSettings] = useState<any>(null)
+  const settings = useSiteSettings()
   const [email, setEmail] = useState('')
-
-  useEffect(() => {
-    fetch('/api/ayarlar')
-      .then(r => r.json())
-      .then(d => setSettings(d))
-      .catch(() => {})
-  }, [])
 
   const handleNewsletter = (e: React.FormEvent) => {
     e.preventDefault()

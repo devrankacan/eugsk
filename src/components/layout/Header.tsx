@@ -2,10 +2,10 @@
 
 import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
-import Image from 'next/image'
 import { useSession, signOut } from 'next-auth/react'
-import { Menu, X, ChevronDown, User, LogOut, Settings, Search } from 'lucide-react'
+import { Menu, X, ChevronDown, User, LogOut, Settings, Search, Radio } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { useSiteSettings } from '@/lib/site-settings-context'
 
 const staticNavLinks = [
   { href: '/', label: 'Ana Sayfa' },
@@ -17,16 +17,11 @@ const staticNavLinks = [
 
 export default function Header() {
   const { data: session } = useSession()
+  const siteSettings = useSiteSettings()
   const [mobileOpen, setMobileOpen] = useState(false)
   const [scrolled, setScrolled] = useState(false)
   const [openDropdown, setOpenDropdown] = useState<string | null>(null)
   const [mobileBranslar, setMobileBranslar] = useState(false)
-  const [siteSettings, setSiteSettings] = useState<any>(() => {
-    if (typeof window !== 'undefined') {
-      try { return JSON.parse(localStorage.getItem('siteSettings') || 'null') } catch { return null }
-    }
-    return null
-  })
   const [searchOpen, setSearchOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [branches, setBranches] = useState<{ id: string; name: string; slug: string }[]>([])
@@ -42,13 +37,6 @@ export default function Header() {
   useEffect(() => {
     fetch('/api/branslar').then(r => r.json()).then(d => {
       if (Array.isArray(d)) setBranches(d)
-    }).catch(() => {})
-  }, [])
-
-  useEffect(() => {
-    fetch('/api/ayarlar').then(r => r.json()).then(d => {
-      setSiteSettings(d)
-      try { localStorage.setItem('siteSettings', JSON.stringify(d)) } catch {}
     }).catch(() => {})
   }, [])
 
@@ -151,6 +139,14 @@ export default function Header() {
 
               <Link href="/iletisim" className="px-3 py-2 rounded text-sm font-medium text-gray-200 hover:text-secondary hover:bg-white/10 transition-all">
                 İletişim
+              </Link>
+
+              <Link href="/canli-yayin" className="flex items-center gap-1.5 ml-2 px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-semibold transition-all">
+                <span className="relative flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75" />
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-white" />
+                </span>
+                Canlı Yayın
               </Link>
             </div>
 
@@ -301,6 +297,15 @@ export default function Header() {
           <Link href="/iletisim" onClick={() => setMobileOpen(false)}
             className="block px-4 py-3 rounded-lg text-sm font-medium text-gray-200 hover:bg-white/10 hover:text-secondary transition-all">
             İletişim
+          </Link>
+
+          <Link href="/canli-yayin" onClick={() => setMobileOpen(false)}
+            className="flex items-center gap-2 px-4 py-3 rounded-lg text-sm font-semibold bg-red-600 hover:bg-red-700 text-white transition-all mt-2">
+            <span className="relative flex h-2 w-2">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75" />
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-white" />
+            </span>
+            Canlı Yayın
           </Link>
         </nav>
 
