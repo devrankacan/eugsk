@@ -249,3 +249,16 @@ model BoardMember {
 
   @@map("board_members")
 }
+
+model PageVisit {
+  id        String   @id @default(cuid())
+  path      String
+  pageTitle String?
+  ip        String?
+  userAgent String?
+  createdAt DateTime @default(now())
+
+  @@index([path])
+  @@index([createdAt])
+  @@map("page_visits")
+}

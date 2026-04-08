@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import './globals.css'
 import { Toaster } from 'react-hot-toast'
 import { Providers } from './providers'
+import PageTracker from '@/components/PageTracker'
 
 export const metadata: Metadata = {
   title: 'Erzurum Üniversiteli Gençler SK',
@@ -18,6 +19,7 @@ export default function RootLayout({
     <html lang="tr">
       <body suppressHydrationWarning>
         <Providers>
+          <PageTracker />
           {children}
           <Toaster
             position="top-right"
