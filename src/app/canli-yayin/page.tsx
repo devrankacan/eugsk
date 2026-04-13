@@ -316,7 +316,7 @@ export default function CanliYayin() {
     } else {
       try {
         if (document.exitFullscreen) await document.exitFullscreen()
-        else if ((document as any).webkitExitFullscreen) ;(document as any).webkitExitFullscreen()
+        else if ((document as any).webkitExitFullscreen) (document as any).webkitExitFullscreen()
       } catch (err) { console.error('Exit fullscreen error:', err) }
     }
   }
