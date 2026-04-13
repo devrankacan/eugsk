@@ -2,6 +2,7 @@ const { createServer } = require('http')
 const { parse } = require('url')
 const next = require('next')
 const { Server } = require('socket.io')
+const { v4: uuidv4 } = require('uuid')
 
 const dev = process.env.NODE_ENV !== 'production'
 const port = parseInt(process.env.PORT || '3000', 10)
@@ -30,7 +31,13 @@ app.prepare().then(() => {
   io.on('connection', (socket) => {
     // Send current live status immediately on connect
     socket.emit('live-status', liveRoom
-      ? { isLive: true, matchInfo: liveRoom.matchInfo, scores: liveRoom.scores }
+      ? {
+          isLive: true,
+          matchInfo: liveRoom.matchInfo,
+          scores: liveRoom.scores,
+          timer: liveRoom.timer,
+          events: liveRoom.events,
+        }
       : { isLive: false }
     )
 
@@ -41,11 +48,19 @@ app.prepare().then(() => {
         viewers: new Map(),
         matchInfo: matchInfo || {},
         scores: { home: 0, away: 0 },
+        timer: { running: false, startedAt: null, elapsed: 0, half: 1, extraTime: 0 },
+        events: [],
       }
       socket.isBroadcaster = true
       socket.join('live')
       console.log('▶ Broadcast started')
-      io.emit('live-status', { isLive: true, matchInfo: liveRoom.matchInfo, scores: liveRoom.scores })
+      io.emit('live-status', {
+        isLive: true,
+        matchInfo: liveRoom.matchInfo,
+        scores: liveRoom.scores,
+        timer: liveRoom.timer,
+        events: liveRoom.events,
+      })
     })
 
     socket.on('update-match', (matchInfo) => {
@@ -58,6 +73,30 @@ app.prepare().then(() => {
       if (!liveRoom || liveRoom.broadcasterId !== socket.id) return
       liveRoom.scores = scores
       io.to('live').emit('score-updated', scores)
+    })
+
+    socket.on('update-timer', (timer) => {
+      if (!liveRoom || liveRoom.broadcasterId !== socket.id) return
+      liveRoom.timer = timer
+      io.to('live').emit('timer-updated', timer)
+    })
+
+    socket.on('add-match-event', (event) => {
+      if (!liveRoom || liveRoom.broadcasterId !== socket.id) return
+      const fullEvent = { ...event, id: uuidv4() }
+      liveRoom.events.push(fullEvent)
+      if (liveRoom.events.length > 100) liveRoom.events = liveRoom.events.slice(-100)
+      io.to('live').emit('match-event', fullEvent)
+    })
+
+    socket.on('show-intro', () => {
+      if (!liveRoom || liveRoom.broadcasterId !== socket.id) return
+      io.to('live').emit('show-intro')
+    })
+
+    socket.on('show-score-reminder', () => {
+      if (!liveRoom || liveRoom.broadcasterId !== socket.id) return
+      io.to('live').emit('show-score-reminder')
     })
 
     socket.on('stop-broadcast', () => {
@@ -74,7 +113,8 @@ app.prepare().then(() => {
       liveRoom.viewers.set(socket.id, true)
       socket.emit('match-updated', liveRoom.matchInfo)
       socket.emit('score-updated', liveRoom.scores)
-      // Tell broadcaster a new viewer is ready for an offer
+      socket.emit('timer-updated', liveRoom.timer)
+      socket.emit('events-history', liveRoom.events)
       io.to(liveRoom.broadcasterId).emit('viewer-joined', { viewerId: socket.id })
       io.to(liveRoom.broadcasterId).emit('viewer-count', liveRoom.viewers.size)
     })
