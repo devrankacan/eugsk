@@ -46,6 +46,7 @@ interface MatchEvent {
   player?: string
   playerOut?: string
   playerIn?: string
+  minute?: number
 }
 
 function abbrev(name: string): string {
@@ -115,6 +116,9 @@ export default function CanliYayin() {
   const [muted, setMuted] = useState(true)
   const [timerDisplay, setTimerDisplay] = useState('00:00')
   const [events, setEvents] = useState<MatchEvent[]>([])
+  const [eventsHistory, setEventsHistory] = useState<MatchEvent[]>([])
+  const [showReminder, setShowReminder] = useState(false)
+  const [reminderFading, setReminderFading] = useState(false)
   const [isFullscreen, setIsFullscreen] = useState(false)
 
   const videoRef = useRef<HTMLVideoElement>(null)
@@ -126,6 +130,7 @@ export default function CanliYayin() {
   const iceCandidateQueue = useRef<RTCIceCandidateInit[]>([])
   const remoteDescSet = useRef(false)
   const introTimers = useRef<ReturnType<typeof setTimeout>[]>([])
+  const reminderTimers = useRef<ReturnType<typeof setTimeout>[]>([])
 
   // Timer display — her 250ms yerel hesaplama
   useEffect(() => {
@@ -156,7 +161,12 @@ export default function CanliYayin() {
     socket.on('score-updated', (sc: Scores) => setScores(sc))
     socket.on('timer-updated', (t: TimerState) => { timerRef.current = t })
 
+    socket.on('events-history', (history: MatchEvent[]) => {
+      setEventsHistory(history)
+    })
+
     socket.on('match-event', (event: MatchEvent) => {
+      setEventsHistory(prev => [...prev, event])
       setEvents(prev => [...prev.slice(-2), event])
       setTimeout(() => setEvents(prev => prev.filter(e => e.id !== event.id)), 5500)
     })
@@ -167,8 +177,12 @@ export default function CanliYayin() {
       setScores({ home: 0, away: 0 })
       setShowIntro(false)
       setEvents([])
+      setEventsHistory([])
+      setShowReminder(false)
       introTimers.current.forEach(clearTimeout)
       introTimers.current = []
+      reminderTimers.current.forEach(clearTimeout)
+      reminderTimers.current = []
       timerRef.current = { running: false, startedAt: null, elapsed: 0, half: 1, extraTime: 0 }
       if (pcRef.current) { pcRef.current.close(); pcRef.current = null }
       iceCandidateQueue.current = []
@@ -187,6 +201,17 @@ export default function CanliYayin() {
       const t1 = setTimeout(() => setIntroFading(true), 4000)
       const t2 = setTimeout(() => setShowIntro(false), 5200)
       introTimers.current = [t1, t2]
+    })
+
+    // Admin panelinden skor hatırlatıcı tetiklendiğinde
+    socket.on('show-score-reminder', () => {
+      reminderTimers.current.forEach(clearTimeout)
+      reminderTimers.current = []
+      setReminderFading(false)
+      setShowReminder(true)
+      const t1 = setTimeout(() => setReminderFading(true), 5000)
+      const t2 = setTimeout(() => setShowReminder(false), 5700)
+      reminderTimers.current = [t1, t2]
     })
 
     // WebRTC: receive offer from broadcaster
@@ -246,6 +271,7 @@ export default function CanliYayin() {
       socket.disconnect()
       pcRef.current?.close()
       introTimers.current.forEach(clearTimeout)
+      reminderTimers.current.forEach(clearTimeout)
     }
   }, [])
 
@@ -324,6 +350,14 @@ export default function CanliYayin() {
   const branch = (matchInfo?.branch || '').toLowerCase()
   const isFutbol = branch.includes('futbol') || branch.includes('football') || branch.includes('soccer')
   const isVoleybol = branch.includes('voleybol') || branch.includes('volleyball')
+
+  // Skor Hatırlatıcı için olay özetleri
+  const homeGoals    = eventsHistory.filter(e => e.type === 'goal'        && e.team === 'home')
+  const awayGoals    = eventsHistory.filter(e => e.type === 'goal'        && e.team === 'away')
+  const homeYellows  = eventsHistory.filter(e => e.type === 'yellow_card' && e.team === 'home')
+  const homeReds     = eventsHistory.filter(e => e.type === 'red_card'    && e.team === 'home')
+  const awayYellows  = eventsHistory.filter(e => e.type === 'yellow_card' && e.team === 'away')
+  const awayReds     = eventsHistory.filter(e => e.type === 'red_card'    && e.team === 'away')
 
   return (
     <div ref={containerRef} className="min-h-screen bg-gray-950 flex flex-col relative overflow-hidden">
@@ -635,7 +669,7 @@ export default function CanliYayin() {
                   <span style={{ fontSize: '14px', lineHeight: 1 }}>{meta.icon}</span>
                   <div className="flex flex-col leading-none gap-0.5">
                     <span className="text-white font-black tracking-[0.15em] uppercase" style={{ fontSize: '10px' }}>
-                      {meta.label}{(event as any).minute ? ` ${(event as any).minute}'` : ''}
+                      {meta.label}{event.minute ? ` ${event.minute}'` : ''}
                     </span>
                     {(event.player || event.playerOut) && (
                       <span style={{ color: 'rgba(255,255,255,0.55)', fontSize: '9px', fontWeight: 600 }}>
@@ -650,6 +684,114 @@ export default function CanliYayin() {
             })}
           </div>
 
+        </div>
+      )}
+
+      {/* ═══════════════════════════════════════════════════
+          SKOR HATIRLATICI — ALT LOWER THIRD (admin tetikler)
+          ═══════════════════════════════════════════════════ */}
+      {showReminder && matchInfo && (
+        <div
+          className="absolute bottom-0 left-0 right-0 z-40"
+          style={{
+            transform: reminderFading ? 'translateY(105%)' : 'translateY(0)',
+            transition: reminderFading
+              ? 'transform 0.55s cubic-bezier(0.55, 0, 1, 0.45)'
+              : 'transform 0.5s cubic-bezier(0.22, 1, 0.36, 1)',
+          }}
+        >
+          {/* Kronometre pill — barın hemen üstünde */}
+          <div className="flex justify-center">
+            <div style={{
+              background: '#001344',
+              border: '1px solid rgba(201,162,39,0.4)',
+              borderBottom: 'none',
+              padding: '3px 18px',
+              borderRadius: '5px 5px 0 0',
+              color: '#c9a227',
+              fontWeight: 900,
+              fontSize: '11px',
+              letterSpacing: '0.25em',
+              fontVariantNumeric: 'tabular-nums',
+            }}>
+              {timerDisplay}
+            </div>
+          </div>
+
+          {/* Üst altın şerit */}
+          <div style={{ height: '2px', background: 'linear-gradient(90deg, transparent, #c9a227 15%, #c9a227 85%, transparent)' }} />
+
+          {/* Ana bar */}
+          <div className="flex items-center" style={{ background: '#001344', padding: '10px 20px', minHeight: '76px' }}>
+
+            {/* Ev sahibi */}
+            <div className="flex items-center gap-3 flex-1 min-w-0">
+              {matchInfo.homeLogo
+                // eslint-disable-next-line @next/next/no-img-element
+                ? <img src={matchInfo.homeLogo} alt="" style={{ width: 52, height: 52, objectFit: 'contain', flexShrink: 0 }} />
+                : <div style={{ width: 52, height: 52, borderRadius: '50%', background: 'rgba(255,255,255,0.1)', flexShrink: 0 }} />
+              }
+              <div className="min-w-0">
+                <div className="text-white font-black text-sm md:text-base truncate">{matchInfo.homeTeam}</div>
+                {homeGoals.length > 0 && (
+                  <div style={{ color: 'rgba(255,255,255,0.55)', fontSize: '10px', fontWeight: 600, marginTop: 2 }}>
+                    ⚽ {homeGoals.map(e => [e.player, e.minute ? `${e.minute}'` : ''].filter(Boolean).join(' ')).filter(Boolean).join('  ·  ')}
+                  </div>
+                )}
+                {(homeYellows.length > 0 || homeReds.length > 0) && (
+                  <div className="flex items-center gap-0.5 mt-1">
+                    {homeYellows.slice(0, 4).map((_, i) => (
+                      <span key={i} style={{ display: 'inline-block', width: 5, height: 7, background: '#eab308', borderRadius: '1px' }} />
+                    ))}
+                    {homeReds.slice(0, 2).map((_, i) => (
+                      <span key={`r${i}`} style={{ display: 'inline-block', width: 5, height: 7, background: '#ef4444', borderRadius: '1px', marginLeft: homeYellows.length > 0 ? 3 : 0 }} />
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Skor merkezi */}
+            <div className="flex items-center gap-2 md:gap-4 shrink-0 px-4 md:px-10">
+              <span className="text-white font-black tabular-nums" style={{ fontSize: 'clamp(2rem, 6vw, 3.5rem)', lineHeight: 1 }}>
+                {scores.home}
+              </span>
+              <span style={{ color: 'rgba(201,162,39,0.45)', fontWeight: 900, fontSize: '1.3rem' }}>—</span>
+              <span className="text-white font-black tabular-nums" style={{ fontSize: 'clamp(2rem, 6vw, 3.5rem)', lineHeight: 1 }}>
+                {scores.away}
+              </span>
+            </div>
+
+            {/* Deplasman */}
+            <div className="flex items-center gap-3 flex-1 min-w-0 justify-end">
+              <div className="min-w-0 text-right">
+                <div className="text-white font-black text-sm md:text-base truncate">{matchInfo.awayTeam}</div>
+                {awayGoals.length > 0 && (
+                  <div style={{ color: 'rgba(255,255,255,0.55)', fontSize: '10px', fontWeight: 600, marginTop: 2 }}>
+                    {awayGoals.map(e => [e.player, e.minute ? `${e.minute}'` : ''].filter(Boolean).join(' ')).filter(Boolean).join('  ·  ')} ⚽
+                  </div>
+                )}
+                {(awayYellows.length > 0 || awayReds.length > 0) && (
+                  <div className="flex items-center gap-0.5 mt-1 justify-end">
+                    {awayYellows.slice(0, 4).map((_, i) => (
+                      <span key={i} style={{ display: 'inline-block', width: 5, height: 7, background: '#eab308', borderRadius: '1px' }} />
+                    ))}
+                    {awayReds.slice(0, 2).map((_, i) => (
+                      <span key={`r${i}`} style={{ display: 'inline-block', width: 5, height: 7, background: '#ef4444', borderRadius: '1px', marginLeft: awayYellows.length > 0 ? 3 : 0 }} />
+                    ))}
+                  </div>
+                )}
+              </div>
+              {matchInfo.awayLogo
+                // eslint-disable-next-line @next/next/no-img-element
+                ? <img src={matchInfo.awayLogo} alt="" style={{ width: 52, height: 52, objectFit: 'contain', flexShrink: 0 }} />
+                : <div style={{ width: 52, height: 52, borderRadius: '50%', background: 'rgba(255,255,255,0.1)', flexShrink: 0 }} />
+              }
+            </div>
+          </div>
+
+          {/* Alt altın şerit */}
+          <div style={{ height: '2px', background: 'linear-gradient(90deg, transparent, #c9a227 15%, #c9a227 85%, transparent)' }} />
         </div>
       )}
     </div>

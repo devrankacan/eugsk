@@ -438,13 +438,21 @@ export default function AdminCanliYayin() {
               <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4 space-y-3">
                 <h3 className="font-bold text-gray-900 text-sm text-center">Yayın Grafikleri</h3>
 
-                {/* Tanıtım */}
-                <button
-                  onClick={() => { socketRef.current?.emit('show-intro'); toast.success('Tanıtım gösteriliyor') }}
-                  className="w-full py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold text-sm transition-all"
-                >
-                  🎬 Tanıtımı Göster
-                </button>
+                {/* Tanıtım + Skor Hatırlatıcı */}
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => { socketRef.current?.emit('show-intro'); toast.success('Tanıtım gösteriliyor') }}
+                    className="flex-1 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold text-sm transition-all"
+                  >
+                    🎬 Tanıtım
+                  </button>
+                  <button
+                    onClick={() => { socketRef.current?.emit('show-score-reminder'); toast.success('Skor hatırlatıcı gösteriliyor') }}
+                    className="flex-1 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-bold text-sm transition-all"
+                  >
+                    📊 Skor Hatırlat
+                  </button>
+                </div>
 
                 {/* Kronometre */}
                 <div className="border border-gray-100 rounded-lg p-3 space-y-2">
