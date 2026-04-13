@@ -21,12 +21,7 @@ export default function Header() {
   const [scrolled, setScrolled] = useState(false)
   const [openDropdown, setOpenDropdown] = useState<string | null>(null)
   const [mobileBranslar, setMobileBranslar] = useState(false)
-  const [siteSettings, setSiteSettings] = useState<any>(() => {
-    if (typeof window !== 'undefined') {
-      try { return JSON.parse(localStorage.getItem('siteSettings') || 'null') } catch { return null }
-    }
-    return null
-  })
+  const [siteSettings, setSiteSettings] = useState<any>(null)
   const [searchOpen, setSearchOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [branches, setBranches] = useState<{ id: string; name: string; slug: string }[]>([])
@@ -46,6 +41,10 @@ export default function Header() {
   }, [])
 
   useEffect(() => {
+    try {
+      const cached = localStorage.getItem('siteSettings')
+      if (cached) setSiteSettings(JSON.parse(cached))
+    } catch {}
     fetch('/api/ayarlar').then(r => r.json()).then(d => {
       setSiteSettings(d)
       try { localStorage.setItem('siteSettings', JSON.stringify(d)) } catch {}
@@ -151,6 +150,11 @@ export default function Header() {
 
               <Link href="/iletisim" className="px-3 py-2 rounded text-sm font-medium text-gray-200 hover:text-secondary hover:bg-white/10 transition-all">
                 İletişim
+              </Link>
+
+              <Link href="/canli-yayin" className="flex items-center gap-1.5 px-3 py-1.5 rounded text-sm font-bold text-white bg-red-600 hover:bg-red-700 transition-all ml-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
+                Canlı Yayın
               </Link>
             </div>
 
@@ -301,6 +305,12 @@ export default function Header() {
           <Link href="/iletisim" onClick={() => setMobileOpen(false)}
             className="block px-4 py-3 rounded-lg text-sm font-medium text-gray-200 hover:bg-white/10 hover:text-secondary transition-all">
             İletişim
+          </Link>
+
+          <Link href="/canli-yayin" onClick={() => setMobileOpen(false)}
+            className="flex items-center gap-2 px-4 py-3 rounded-lg text-sm font-bold text-white bg-red-600 hover:bg-red-700 transition-all">
+            <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
+            Canlı Yayın
           </Link>
         </nav>
 
