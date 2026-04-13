@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { io, Socket } from 'socket.io-client'
-import { Volume2, VolumeX } from 'lucide-react'
+import { Volume2, VolumeX, Maximize2, Minimize2 } from 'lucide-react'
 
 const ICE_SERVERS = {
   iceServers: [
@@ -35,10 +35,16 @@ export default function CanliYayin() {
   const [showIntro, setShowIntro] = useState(false)
   const [introFading, setIntroFading] = useState(false)
   const [muted, setMuted] = useState(true)
+  const [isFullscreen, setIsFullscreen] = useState(false)
 
   const videoRef = useRef<HTMLVideoElement>(null)
+  const containerRef = useRef<HTMLDivElement>(null)
   const socketRef = useRef<Socket | null>(null)
   const pcRef = useRef<RTCPeerConnection | null>(null)
+  // ICE candidates that arrive before setRemoteDescription is called
+  const iceCandidateQueue = useRef<RTCIceCandidateInit[]>([])
+  const remoteDescSet = useRef(false)
+  const introTimers = useRef<ReturnType<typeof setTimeout>[]>([])
 
   useEffect(() => {
     const socket = io({ transports: ['websocket', 'polling'] })
@@ -50,7 +56,6 @@ export default function CanliYayin() {
         setIsLive(true)
         setMatchInfo(mi)
         setScores(sc || { home: 0, away: 0 })
-        // join as viewer
         socket.emit('join-viewer')
       } else {
         setIsLive(false)
@@ -70,10 +75,14 @@ export default function CanliYayin() {
       setMatchInfo(null)
       setScores({ home: 0, away: 0 })
       setShowIntro(false)
+      introTimers.current.forEach(clearTimeout)
+      introTimers.current = []
       if (pcRef.current) {
         pcRef.current.close()
         pcRef.current = null
       }
+      iceCandidateQueue.current = []
+      remoteDescSet.current = false
       if (videoRef.current) videoRef.current.srcObject = null
     })
 
@@ -84,16 +93,32 @@ export default function CanliYayin() {
 
     // WebRTC: receive offer from broadcaster
     socket.on('offer', async ({ senderId, offer }: any) => {
+      // Close any previous connection cleanly before creating a new one
+      if (pcRef.current) {
+        pcRef.current.close()
+        pcRef.current = null
+      }
+      iceCandidateQueue.current = []
+      remoteDescSet.current = false
+
       const pc = new RTCPeerConnection(ICE_SERVERS)
       pcRef.current = pc
 
       pc.ontrack = (e) => {
         if (videoRef.current && e.streams[0]) {
           videoRef.current.srcObject = e.streams[0]
-          // show intro when stream starts
+          // Explicitly call play() — some browsers don't auto-play even with autoPlay attr
+          videoRef.current.play().catch(() => {
+            // Will play once user interacts (muted so usually fine)
+          })
+          // Reset and show intro
+          introTimers.current.forEach(clearTimeout)
+          introTimers.current = []
+          setIntroFading(false)
           setShowIntro(true)
-          setTimeout(() => setIntroFading(true), 4000)
-          setTimeout(() => setShowIntro(false), 5000)
+          const t1 = setTimeout(() => setIntroFading(true), 4000)
+          const t2 = setTimeout(() => setShowIntro(false), 5000)
+          introTimers.current = [t1, t2]
         }
       }
 
@@ -103,8 +128,23 @@ export default function CanliYayin() {
         }
       }
 
+      // Auto-restart ICE if connection fails (handles network hiccups)
+      pc.oniceconnectionstatechange = () => {
+        if (pc.iceConnectionState === 'failed') {
+          pc.restartIce()
+        }
+      }
+
       try {
         await pc.setRemoteDescription(offer)
+        remoteDescSet.current = true
+
+        // Flush any ICE candidates that arrived before setRemoteDescription
+        for (const queued of iceCandidateQueue.current) {
+          await pc.addIceCandidate(queued).catch(() => {})
+        }
+        iceCandidateQueue.current = []
+
         const answer = await pc.createAnswer()
         await pc.setLocalDescription(answer)
         socket.emit('answer', { targetId: senderId, answer })
@@ -114,16 +154,39 @@ export default function CanliYayin() {
     })
 
     socket.on('ice-candidate', async ({ candidate }: any) => {
-      try {
-        await pcRef.current?.addIceCandidate(candidate)
-      } catch (err) {
-        console.error('ICE error:', err)
+      if (!candidate) return
+      if (pcRef.current && remoteDescSet.current) {
+        // Remote description is set — add candidate directly
+        await pcRef.current.addIceCandidate(candidate).catch(() => {})
+      } else {
+        // Queue for later — connection not ready yet
+        iceCandidateQueue.current.push(candidate)
       }
     })
 
     return () => {
       socket.disconnect()
       pcRef.current?.close()
+      introTimers.current.forEach(clearTimeout)
+    }
+  }, [])
+
+  // Track fullscreen state changes (including browser back button / ESC key)
+  useEffect(() => {
+    function onFsChange() {
+      const fsEl =
+        document.fullscreenElement ||
+        (document as any).webkitFullscreenElement
+      setIsFullscreen(!!fsEl)
+      if (!fsEl) {
+        try { (screen.orientation as any)?.unlock?.() } catch {}
+      }
+    }
+    document.addEventListener('fullscreenchange', onFsChange)
+    document.addEventListener('webkitfullscreenchange', onFsChange)
+    return () => {
+      document.removeEventListener('fullscreenchange', onFsChange)
+      document.removeEventListener('webkitfullscreenchange', onFsChange)
     }
   }, [])
 
@@ -131,6 +194,39 @@ export default function CanliYayin() {
     if (videoRef.current) {
       videoRef.current.muted = !videoRef.current.muted
       setMuted(videoRef.current.muted)
+    }
+  }
+
+  async function toggleFullscreen() {
+    if (!isFullscreen) {
+      const el = containerRef.current
+      try {
+        if (el?.requestFullscreen) {
+          await el.requestFullscreen()
+        } else if ((el as any)?.webkitRequestFullscreen) {
+          ;(el as any).webkitRequestFullscreen()
+        } else if (videoRef.current && (videoRef.current as any).webkitEnterFullscreen) {
+          // iOS Safari fallback — auto-handles landscape orientation
+          ;(videoRef.current as any).webkitEnterFullscreen()
+          return
+        }
+        // Lock to landscape on mobile after entering fullscreen
+        try {
+          await (screen.orientation as any)?.lock?.('landscape')
+        } catch {}
+      } catch (err) {
+        console.error('Fullscreen error:', err)
+      }
+    } else {
+      try {
+        if (document.exitFullscreen) {
+          await document.exitFullscreen()
+        } else if ((document as any).webkitExitFullscreen) {
+          ;(document as any).webkitExitFullscreen()
+        }
+      } catch (err) {
+        console.error('Exit fullscreen error:', err)
+      }
     }
   }
 
@@ -161,7 +257,11 @@ export default function CanliYayin() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-950 flex flex-col relative overflow-hidden">
+    <div
+      ref={containerRef}
+      className="min-h-screen bg-gray-950 flex flex-col relative overflow-hidden"
+      style={{ width: '100%', height: isFullscreen ? '100vh' : undefined }}
+    >
       {/* Video */}
       <video
         ref={videoRef}
@@ -171,13 +271,25 @@ export default function CanliYayin() {
         className="w-full h-screen object-cover absolute inset-0"
       />
 
-      {/* Mute button */}
-      <button
-        onClick={toggleMute}
-        className="absolute top-4 right-4 z-30 bg-black/50 hover:bg-black/70 text-white rounded-full p-2.5 backdrop-blur-sm transition-all"
-      >
-        {muted ? <VolumeX size={20} /> : <Volume2 size={20} />}
-      </button>
+      {/* Top-right controls */}
+      <div className="absolute top-4 right-4 z-30 flex items-center gap-2">
+        {/* Fullscreen button */}
+        <button
+          onClick={toggleFullscreen}
+          className="bg-black/50 hover:bg-black/70 text-white rounded-full p-2.5 backdrop-blur-sm transition-all"
+          title={isFullscreen ? 'Tam ekrandan çık' : 'Tam ekran'}
+        >
+          {isFullscreen ? <Minimize2 size={20} /> : <Maximize2 size={20} />}
+        </button>
+
+        {/* Mute button */}
+        <button
+          onClick={toggleMute}
+          className="bg-black/50 hover:bg-black/70 text-white rounded-full p-2.5 backdrop-blur-sm transition-all"
+        >
+          {muted ? <VolumeX size={20} /> : <Volume2 size={20} />}
+        </button>
+      </div>
 
       {/* LIVE badge */}
       <div className="absolute top-4 left-4 z-30 flex items-center gap-1.5 bg-red-600 text-white text-xs font-bold px-3 py-1.5 rounded-full shadow-lg">

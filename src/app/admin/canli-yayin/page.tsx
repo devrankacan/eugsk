@@ -43,6 +43,9 @@ export default function AdminCanliYayin() {
   const streamRef = useRef<MediaStream | null>(null)
   const videoRef = useRef<HTMLVideoElement>(null)
   const peersRef = useRef<Record<string, RTCPeerConnection>>({})
+  // Per-viewer ICE candidate queues (buffered until answer sets remote description)
+  const iceCandidateQueues = useRef<Record<string, RTCIceCandidateInit[]>>({})
+  const remoteDescSet = useRef<Record<string, boolean>>({})
 
   // Socket setup
   useEffect(() => {
@@ -53,6 +56,8 @@ export default function AdminCanliYayin() {
       if (!streamRef.current) return
       const pc = new RTCPeerConnection(ICE_SERVERS)
       peersRef.current[viewerId] = pc
+      iceCandidateQueues.current[viewerId] = []
+      remoteDescSet.current[viewerId] = false
 
       streamRef.current.getTracks().forEach(track =>
         pc.addTrack(track, streamRef.current!)
@@ -61,6 +66,12 @@ export default function AdminCanliYayin() {
       pc.onicecandidate = (e) => {
         if (e.candidate) {
           socket.emit('ice-candidate', { targetId: viewerId, candidate: e.candidate })
+        }
+      }
+
+      pc.oniceconnectionstatechange = () => {
+        if (pc.iceConnectionState === 'failed') {
+          pc.restartIce()
         }
       }
 
@@ -74,18 +85,30 @@ export default function AdminCanliYayin() {
     })
 
     socket.on('answer', async ({ senderId, answer }: any) => {
+      const pc = peersRef.current[senderId]
+      if (!pc) return
       try {
-        await peersRef.current[senderId]?.setRemoteDescription(answer)
+        await pc.setRemoteDescription(answer)
+        remoteDescSet.current[senderId] = true
+        // Flush queued ICE candidates for this viewer
+        for (const candidate of (iceCandidateQueues.current[senderId] || [])) {
+          await pc.addIceCandidate(candidate).catch(() => {})
+        }
+        iceCandidateQueues.current[senderId] = []
       } catch (err) {
         console.error('Answer error:', err)
       }
     })
 
     socket.on('ice-candidate', async ({ senderId, candidate }: any) => {
-      try {
-        await peersRef.current[senderId]?.addIceCandidate(candidate)
-      } catch (err) {
-        console.error('ICE error:', err)
+      if (!candidate) return
+      const pc = peersRef.current[senderId]
+      if (pc && remoteDescSet.current[senderId]) {
+        await pc.addIceCandidate(candidate).catch(() => {})
+      } else {
+        // Queue until remote description is set
+        if (!iceCandidateQueues.current[senderId]) iceCandidateQueues.current[senderId] = []
+        iceCandidateQueues.current[senderId].push(candidate)
       }
     })
 
@@ -135,6 +158,8 @@ export default function AdminCanliYayin() {
     streamRef.current = null
     Object.values(peersRef.current).forEach(pc => pc.close())
     peersRef.current = {}
+    iceCandidateQueues.current = {}
+    remoteDescSet.current = {}
     if (videoRef.current) videoRef.current.srcObject = null
     socketRef.current?.emit('stop-broadcast')
     setIsLive(false)
