@@ -65,6 +65,7 @@ export default function AdminCanliYayin() {
   const [matchInfo, setMatchInfo] = useState<MatchInfo>(defaultMatchInfo)
   const [mediaMode, setMediaMode] = useState<'camera' | 'screen'>('camera')
   const [starting, setStarting] = useState(false)
+  const [branches, setBranches] = useState<string[]>([])
 
   // Timer
   const timerLocalRef = useRef<TimerState>({ running: false, startedAt: null, elapsed: 0, half: 1, extraTime: 0 })
@@ -87,6 +88,16 @@ export default function AdminCanliYayin() {
   const peersRef = useRef<Record<string, RTCPeerConnection>>({})
   const iceCandidateQueues = useRef<Record<string, RTCIceCandidateInit[]>>({})
   const remoteDescSet = useRef<Record<string, boolean>>({})
+
+  // Branşları yükle
+  useEffect(() => {
+    fetch('/api/branslar')
+      .then(r => r.json())
+      .then(data => {
+        if (Array.isArray(data)) setBranches(data.map((b: any) => b.name).filter(Boolean))
+      })
+      .catch(() => {})
+  }, [])
 
   // Timer display interval
   useEffect(() => {
@@ -137,6 +148,8 @@ export default function AdminCanliYayin() {
       if (eventPlayer) payload.player = eventPlayer
     }
     socketRef.current?.emit('add-match-event', payload)
+    // Gol atılınca skoru otomatik artır
+    if (eventType === 'goal') updateScore(eventTeam, 1)
     setEventPlayer(''); setEventPlayerOut(''); setEventPlayerIn(''); setEventMinute('')
     toast.success('Olay yayınlandı')
   }
@@ -341,9 +354,14 @@ export default function AdminCanliYayin() {
             <div className="grid grid-cols-3 gap-3">
               <div>
                 <label className="form-label">Branş</label>
-                <input type="text" value={matchInfo.branch}
+                <select value={matchInfo.branch}
                   onChange={e => handleMatchField('branch', e.target.value)}
-                  className="form-input" placeholder="Futbol" />
+                  className="form-input">
+                  <option value="">Seçiniz...</option>
+                  {branches.map(b => (
+                    <option key={b} value={b}>{b}</option>
+                  ))}
+                </select>
               </div>
               <div>
                 <label className="form-label">Kategori</label>
