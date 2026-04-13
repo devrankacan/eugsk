@@ -177,3 +177,12 @@
 .animate-event-slide {
   animation: eventSlide 0.28s cubic-bezier(0.22, 1, 0.36, 1) forwards;
 }
+
+@keyframes actionDrop {
+  from { opacity: 0; transform: translateY(-8px) scaleY(0.85); transform-origin: top; }
+  to   { opacity: 1; transform: translateY(0) scaleY(1); transform-origin: top; }
+}
+
+.animate-action-drop {
+  animation: actionDrop 0.25s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}

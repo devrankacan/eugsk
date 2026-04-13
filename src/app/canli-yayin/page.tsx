@@ -35,6 +35,8 @@ interface TimerState {
   running: boolean
   startedAt: number | null
   elapsed: number
+  half: 1 | 2
+  extraTime: number
 }
 
 interface MatchEvent {
@@ -61,8 +63,27 @@ function RedCards({ count }: { count?: number }) {
   )
 }
 
-function formatTime(ms: number): string {
-  const s = Math.floor(Math.max(0, ms) / 1000)
+function computeTimerDisplay(timer: TimerState): string {
+  const raw = timer.running && timer.startedAt
+    ? timer.elapsed + (Date.now() - timer.startedAt)
+    : timer.elapsed
+
+  const halfBase = timer.half === 2 ? 45 * 60 * 1000 : 0
+  const halfCap  = 45 * 60 * 1000
+  const extraMs  = (timer.extraTime || 0) * 60 * 1000
+  const clamped  = Math.min(raw, halfCap + extraMs)
+  const totalMs  = halfBase + clamped
+
+  // İlave süre bölgesinde mi?
+  const normalMax = halfBase + halfCap
+  if (totalMs > normalMax) {
+    const capMin   = timer.half === 1 ? 45 : 90
+    const extraSec = Math.floor((totalMs - normalMax) / 1000)
+    const extraMin = Math.floor(extraSec / 60) + 1
+    return `${capMin}+${extraMin}'`
+  }
+
+  const s = Math.floor(totalMs / 1000)
   return `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`
 }
 
@@ -100,18 +121,16 @@ export default function CanliYayin() {
   const containerRef = useRef<HTMLDivElement>(null)
   const socketRef = useRef<Socket | null>(null)
   const pcRef = useRef<RTCPeerConnection | null>(null)
-  const timerRef = useRef<TimerState>({ running: false, startedAt: null, elapsed: 0 })
+  const timerRef = useRef<TimerState>({ running: false, startedAt: null, elapsed: 0, half: 1, extraTime: 0 })
   // ICE candidates that arrive before setRemoteDescription is called
   const iceCandidateQueue = useRef<RTCIceCandidateInit[]>([])
   const remoteDescSet = useRef(false)
   const introTimers = useRef<ReturnType<typeof setTimeout>[]>([])
 
-  // Timer display — recalculates locally every 250ms
+  // Timer display — her 250ms yerel hesaplama
   useEffect(() => {
     const iv = setInterval(() => {
-      const t = timerRef.current
-      const ms = t.running && t.startedAt ? t.elapsed + (Date.now() - t.startedAt) : t.elapsed
-      setTimerDisplay(formatTime(ms))
+      setTimerDisplay(computeTimerDisplay(timerRef.current))
     }, 250)
     return () => clearInterval(iv)
   }, [])
@@ -150,7 +169,7 @@ export default function CanliYayin() {
       setEvents([])
       introTimers.current.forEach(clearTimeout)
       introTimers.current = []
-      timerRef.current = { running: false, startedAt: null, elapsed: 0 }
+      timerRef.current = { running: false, startedAt: null, elapsed: 0, half: 1, extraTime: 0 }
       if (pcRef.current) { pcRef.current.close(); pcRef.current = null }
       iceCandidateQueue.current = []
       remoteDescSet.current = false
@@ -462,7 +481,7 @@ export default function CanliYayin() {
                 style={{ background: '#001344' }}>
                 <UCLStar />
                 <span className="font-black tabular-nums text-[13px] tracking-wider"
-                  style={{ color: '#c9a227', minWidth: '3rem', fontVariantNumeric: 'tabular-nums' }}>
+                  style={{ color: '#c9a227', minWidth: '3.5rem', fontVariantNumeric: 'tabular-nums' }}>
                   {timerDisplay}
                 </span>
               </div>
@@ -596,26 +615,27 @@ export default function CanliYayin() {
             </div>
           )}
 
-          {/* ── OLAY BİLDİRİMLERİ (scoreboardun hemen altı) ── */}
+          {/* ── OLAY BİLDİRİMLERİ — skorboardın altından dropdown açılır ── */}
           <div className="flex flex-col gap-1">
             {events.map(event => {
               const meta = EVENT_META[event.type] || EVENT_META.goal
               const teamName = event.team === 'home' ? matchInfo.homeTeam : matchInfo.awayTeam
-              const scoreboard_bg = isFutbol ? '#001344' : isVoleybol ? 'rgba(4,6,20,0.93)' : 'rgba(0,0,0,0.82)'
+              const bg = isFutbol ? '#001344' : isVoleybol ? 'rgba(4,6,20,0.93)' : 'rgba(0,0,0,0.82)'
               return (
                 <div key={event.id}
-                  className="animate-event-slide flex items-center gap-2.5 overflow-hidden"
+                  className="animate-action-drop flex items-center gap-2.5 overflow-hidden"
                   style={{
                     borderRadius: '2px',
-                    background: scoreboard_bg,
+                    background: bg,
                     boxShadow: '0 4px 16px rgba(0,0,0,0.7)',
                     borderLeft: `3px solid ${meta.accent}`,
                     padding: '6px 10px 6px 8px',
+                    minWidth: '160px',
                   }}>
                   <span style={{ fontSize: '14px', lineHeight: 1 }}>{meta.icon}</span>
                   <div className="flex flex-col leading-none gap-0.5">
                     <span className="text-white font-black tracking-[0.15em] uppercase" style={{ fontSize: '10px' }}>
-                      {meta.label}
+                      {meta.label}{(event as any).minute ? ` ${(event as any).minute}'` : ''}
                     </span>
                     {(event.player || event.playerOut) && (
                       <span style={{ color: 'rgba(255,255,255,0.55)', fontSize: '9px', fontWeight: 600 }}>

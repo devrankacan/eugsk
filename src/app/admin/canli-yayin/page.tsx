@@ -5,8 +5,35 @@ import { io, Socket } from 'socket.io-client'
 import AdminHeader from '@/components/admin/AdminHeader'
 import Button from '@/components/ui/Button'
 import ImageUpload from '@/components/ui/ImageUpload'
-import { Radio, Square, Users, Monitor, Camera, ExternalLink } from 'lucide-react'
+import { Radio, Square, Users, Monitor, Camera, ExternalLink, Play, Pause, Timer } from 'lucide-react'
 import toast from 'react-hot-toast'
+
+interface TimerState {
+  running: boolean
+  startedAt: number | null
+  elapsed: number
+  half: 1 | 2
+  extraTime: number
+}
+
+function computeTimerDisplay(timer: TimerState): string {
+  const raw = timer.running && timer.startedAt
+    ? timer.elapsed + (Date.now() - timer.startedAt)
+    : timer.elapsed
+  const halfBase = timer.half === 2 ? 45 * 60 * 1000 : 0
+  const halfCap  = 45 * 60 * 1000
+  const extraMs  = (timer.extraTime || 0) * 60 * 1000
+  const clamped  = Math.min(raw, halfCap + extraMs)
+  const totalMs  = halfBase + clamped
+  const normalMax = halfBase + halfCap
+  if (totalMs > normalMax) {
+    const capMin   = timer.half === 1 ? 45 : 90
+    const extraSec = Math.floor((totalMs - normalMax) / 1000)
+    return `${capMin}+${Math.floor(extraSec / 60) + 1}'`
+  }
+  const s = Math.floor(totalMs / 1000)
+  return `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`
+}
 
 const ICE_SERVERS = {
   iceServers: [
@@ -39,13 +66,80 @@ export default function AdminCanliYayin() {
   const [mediaMode, setMediaMode] = useState<'camera' | 'screen'>('camera')
   const [starting, setStarting] = useState(false)
 
+  // Timer
+  const timerLocalRef = useRef<TimerState>({ running: false, startedAt: null, elapsed: 0, half: 1, extraTime: 0 })
+  const [timerDisplay, setTimerDisplay] = useState('00:00')
+  const [timerRunning, setTimerRunning] = useState(false)
+  const [timerHalf, setTimerHalf] = useState<1 | 2>(1)
+  const [extraInput, setExtraInput] = useState('')
+
+  // Events form
+  const [eventType, setEventType] = useState<'goal' | 'yellow_card' | 'red_card' | 'substitution'>('goal')
+  const [eventTeam, setEventTeam] = useState<'home' | 'away'>('home')
+  const [eventPlayer, setEventPlayer] = useState('')
+  const [eventPlayerOut, setEventPlayerOut] = useState('')
+  const [eventPlayerIn, setEventPlayerIn] = useState('')
+  const [eventMinute, setEventMinute] = useState('')
+
   const socketRef = useRef<Socket | null>(null)
   const streamRef = useRef<MediaStream | null>(null)
   const videoRef = useRef<HTMLVideoElement>(null)
   const peersRef = useRef<Record<string, RTCPeerConnection>>({})
-  // Per-viewer ICE candidate queues (buffered until answer sets remote description)
   const iceCandidateQueues = useRef<Record<string, RTCIceCandidateInit[]>>({})
   const remoteDescSet = useRef<Record<string, boolean>>({})
+
+  // Timer display interval
+  useEffect(() => {
+    const iv = setInterval(() => {
+      setTimerDisplay(computeTimerDisplay(timerLocalRef.current))
+    }, 250)
+    return () => clearInterval(iv)
+  }, [])
+
+  function emitTimer(t: TimerState) {
+    timerLocalRef.current = t
+    setTimerRunning(t.running)
+    setTimerHalf(t.half)
+    socketRef.current?.emit('update-timer', t)
+  }
+
+  function startTimer() {
+    const t = timerLocalRef.current
+    if (t.running) return
+    emitTimer({ ...t, running: true, startedAt: Date.now() })
+  }
+
+  function pauseTimer() {
+    const t = timerLocalRef.current
+    if (!t.running || !t.startedAt) return
+    emitTimer({ ...t, running: false, elapsed: t.elapsed + (Date.now() - t.startedAt), startedAt: null })
+  }
+
+  function switchHalf(half: 1 | 2) {
+    emitTimer({ running: false, startedAt: null, elapsed: 0, half, extraTime: 0 })
+    setExtraInput('')
+  }
+
+  function applyExtraTime() {
+    const extra = Math.max(0, parseInt(extraInput) || 0)
+    emitTimer({ ...timerLocalRef.current, extraTime: extra })
+    setExtraInput('')
+    toast.success(`+${extra}' ilave süre ayarlandı`)
+  }
+
+  function submitEvent() {
+    const payload: any = { type: eventType, team: eventTeam }
+    if (eventMinute) payload.minute = parseInt(eventMinute)
+    if (eventType === 'substitution') {
+      if (eventPlayerOut) payload.playerOut = eventPlayerOut
+      if (eventPlayerIn) payload.playerIn = eventPlayerIn
+    } else {
+      if (eventPlayer) payload.player = eventPlayer
+    }
+    socketRef.current?.emit('add-match-event', payload)
+    setEventPlayer(''); setEventPlayerOut(''); setEventPlayerIn(''); setEventMinute('')
+    toast.success('Olay yayınlandı')
+  }
 
   // Socket setup
   useEffect(() => {
@@ -341,14 +435,115 @@ export default function AdminCanliYayin() {
 
             {/* Yayın grafikleri — only when live */}
             {isLive && (
-              <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4 space-y-2">
+              <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4 space-y-3">
                 <h3 className="font-bold text-gray-900 text-sm text-center">Yayın Grafikleri</h3>
+
+                {/* Tanıtım */}
                 <button
                   onClick={() => { socketRef.current?.emit('show-intro'); toast.success('Tanıtım gösteriliyor') }}
-                  className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold text-sm transition-all"
+                  className="w-full py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold text-sm transition-all"
                 >
                   🎬 Tanıtımı Göster
                 </button>
+
+                {/* Kronometre */}
+                <div className="border border-gray-100 rounded-lg p-3 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-gray-500 flex items-center gap-1">
+                      <Timer size={12} /> KRONOMETRe
+                    </span>
+                    <span className="font-black text-base tabular-nums text-primary">{timerDisplay}</span>
+                  </div>
+
+                  {/* Devre seçimi */}
+                  <div className="flex gap-1.5">
+                    <button onClick={() => switchHalf(1)}
+                      className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition-all ${timerHalf === 1 ? 'bg-primary text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
+                      1. Devre
+                    </button>
+                    <button onClick={() => switchHalf(2)}
+                      className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition-all ${timerHalf === 2 ? 'bg-primary text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
+                      2. Devre
+                    </button>
+                  </div>
+
+                  {/* Başlat / Duraklat */}
+                  <button
+                    onClick={timerRunning ? pauseTimer : startTimer}
+                    className={`w-full py-2 rounded-lg font-bold text-sm transition-all flex items-center justify-center gap-2 ${timerRunning ? 'bg-yellow-500 hover:bg-yellow-600 text-white' : 'bg-green-600 hover:bg-green-700 text-white'}`}
+                  >
+                    {timerRunning ? <><Pause size={14} /> Duraklat</> : <><Play size={14} /> Başlat</>}
+                  </button>
+
+                  {/* İlave süre */}
+                  <div className="flex gap-1.5">
+                    <input
+                      type="number" min="0" max="20"
+                      placeholder="+dk"
+                      value={extraInput}
+                      onChange={e => setExtraInput(e.target.value)}
+                      className="flex-1 px-2 py-1.5 border border-gray-200 rounded-lg text-xs text-center font-bold focus:outline-none focus:ring-1 focus:ring-primary"
+                    />
+                    <button onClick={applyExtraTime}
+                      className="px-3 py-1.5 bg-orange-500 hover:bg-orange-600 text-white rounded-lg text-xs font-bold transition-all">
+                      İlave Süre
+                    </button>
+                  </div>
+                </div>
+
+                {/* Maç Olayları */}
+                <div className="border border-gray-100 rounded-lg p-3 space-y-2">
+                  <span className="text-xs font-bold text-gray-500">MAÇ OLAYLARI</span>
+
+                  {/* Tip + Takım */}
+                  <div className="flex gap-1.5">
+                    <select
+                      value={eventType}
+                      onChange={e => setEventType(e.target.value as any)}
+                      className="flex-1 px-2 py-1.5 border border-gray-200 rounded-lg text-xs font-medium focus:outline-none focus:ring-1 focus:ring-primary"
+                    >
+                      <option value="goal">⚽ Gol</option>
+                      <option value="yellow_card">🟨 Sarı Kart</option>
+                      <option value="red_card">🟥 Kırmızı Kart</option>
+                      <option value="substitution">🔄 Değişiklik</option>
+                    </select>
+                    <select
+                      value={eventTeam}
+                      onChange={e => setEventTeam(e.target.value as any)}
+                      className="flex-1 px-2 py-1.5 border border-gray-200 rounded-lg text-xs font-medium focus:outline-none focus:ring-1 focus:ring-primary"
+                    >
+                      <option value="home">{matchInfo.homeTeam || 'Ev Sahibi'}</option>
+                      <option value="away">{matchInfo.awayTeam || 'Deplasman'}</option>
+                    </select>
+                  </div>
+
+                  {/* Oyuncu alanları */}
+                  {eventType === 'substitution' ? (
+                    <div className="flex gap-1.5">
+                      <input type="text" placeholder="Çıkan oyuncu" value={eventPlayerOut}
+                        onChange={e => setEventPlayerOut(e.target.value)}
+                        className="flex-1 px-2 py-1.5 border border-gray-200 rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-primary" />
+                      <input type="text" placeholder="Giren oyuncu" value={eventPlayerIn}
+                        onChange={e => setEventPlayerIn(e.target.value)}
+                        className="flex-1 px-2 py-1.5 border border-gray-200 rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-primary" />
+                    </div>
+                  ) : (
+                    <input type="text" placeholder="Oyuncu adı (opsiyonel)" value={eventPlayer}
+                      onChange={e => setEventPlayer(e.target.value)}
+                      className="w-full px-2 py-1.5 border border-gray-200 rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-primary" />
+                  )}
+
+                  {/* Dakika + Gönder */}
+                  <div className="flex gap-1.5">
+                    <input type="number" placeholder="Dakika" value={eventMinute}
+                      onChange={e => setEventMinute(e.target.value)}
+                      className="w-20 px-2 py-1.5 border border-gray-200 rounded-lg text-xs text-center focus:outline-none focus:ring-1 focus:ring-primary" />
+                    <button onClick={submitEvent}
+                      className="flex-1 py-1.5 bg-primary hover:bg-primary-700 text-white rounded-lg text-xs font-bold transition-all">
+                      Yayınla
+                    </button>
+                  </div>
+                </div>
               </div>
             )}
 
