@@ -339,6 +339,19 @@ export default function AdminCanliYayin() {
               </button>
             )}
 
+            {/* Yayın grafikleri — only when live */}
+            {isLive && (
+              <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4 space-y-2">
+                <h3 className="font-bold text-gray-900 text-sm text-center">Yayın Grafikleri</h3>
+                <button
+                  onClick={() => { socketRef.current?.emit('show-intro'); toast.success('Tanıtım gösteriliyor') }}
+                  className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold text-sm transition-all"
+                >
+                  🎬 Tanıtımı Göster
+                </button>
+              </div>
+            )}
+
             {/* Score controls — only when live */}
             {isLive && (
               <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">

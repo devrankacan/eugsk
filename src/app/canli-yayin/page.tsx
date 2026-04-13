@@ -159,6 +159,17 @@ export default function CanliYayin() {
 
     socket.on('room-not-found', () => { setIsLive(false); setLoading(false) })
 
+    // Admin panelinden tanıtım tetiklendiğinde
+    socket.on('show-intro', () => {
+      introTimers.current.forEach(clearTimeout)
+      introTimers.current = []
+      setIntroFading(false)
+      setShowIntro(true)
+      const t1 = setTimeout(() => setIntroFading(true), 4000)
+      const t2 = setTimeout(() => setShowIntro(false), 5200)
+      introTimers.current = [t1, t2]
+    })
+
     // WebRTC: receive offer from broadcaster
     socket.on('offer', async ({ senderId, offer }: any) => {
       // Eski bağlantıyı temizle
@@ -174,14 +185,6 @@ export default function CanliYayin() {
           videoRef.current.srcObject = e.streams[0]
           // Bazı tarayıcılar autoPlay attribute'una rağmen oynatmıyor — açıkça play() çağır
           videoRef.current.play().catch(() => {})
-          // Intro animasyonu
-          introTimers.current.forEach(clearTimeout)
-          introTimers.current = []
-          setIntroFading(false)
-          setShowIntro(true)
-          const t1 = setTimeout(() => setIntroFading(true), 4000)
-          const t2 = setTimeout(() => setShowIntro(false), 5000)
-          introTimers.current = [t1, t2]
         }
       }
 
@@ -332,40 +335,110 @@ export default function CanliYayin() {
         CANLI
       </div>
 
-      {/* ── 5 saniyelik giriş overlay ── */}
+      {/* ══════════════════════════════════════════
+          MAÇ BAŞI TANITIM OVERLAY (admin tetikler)
+          ══════════════════════════════════════════ */}
       {showIntro && matchInfo && (
-        <div className="absolute inset-0 z-20 flex flex-col items-center justify-center"
+        <div
+          className="absolute inset-0 z-50 flex items-center justify-center"
           style={{
-            background: 'linear-gradient(135deg, rgba(0,0,0,0.92) 0%, rgba(10,20,60,0.92) 100%)',
+            background: 'rgba(0,0,0,0.6)',
             opacity: introFading ? 0 : 1,
-            transition: introFading ? 'opacity 1s ease-out' : 'none',
-          }}>
-          {(matchInfo.branch || matchInfo.category) && (
-            <div className="text-secondary/80 text-xs font-semibold tracking-[0.3em] uppercase mb-8">
-              {matchInfo.branch}{matchInfo.category ? ` • ${matchInfo.category}` : ''}
+            transition: introFading ? 'opacity 1.2s ease-in-out' : 'opacity 0.5s ease-in',
+          }}
+        >
+          {/* Panel — ekranın ~82%'si */}
+          <div
+            className="relative flex flex-col items-center justify-center overflow-hidden w-[82%] h-[78%]"
+            style={{
+              background: 'linear-gradient(135deg, #0d1b8e 0%, #071260 45%, #060c3d 100%)',
+              borderRadius: '6px',
+              boxShadow: '0 0 0 1px rgba(201,162,39,0.25), 0 40px 100px rgba(0,0,0,0.95)',
+            }}
+          >
+            {/* Arka plan ışık efektleri */}
+            <div className="absolute inset-0 pointer-events-none" style={{
+              background: `
+                radial-gradient(ellipse 55% 60% at 20% 55%, rgba(13,27,142,0.6) 0%, transparent 70%),
+                radial-gradient(ellipse 55% 60% at 80% 55%, rgba(13,27,142,0.6) 0%, transparent 70%),
+                radial-gradient(ellipse 30% 40% at 50% 40%, rgba(201,162,39,0.08) 0%, transparent 70%)
+              `
+            }} />
+
+            {/* Branş / kategori */}
+            {(matchInfo.branch || matchInfo.category) && (
+              <div className="text-secondary/70 text-[10px] md:text-xs font-bold tracking-[0.4em] uppercase mb-6 z-10">
+                {matchInfo.branch}{matchInfo.category ? ` • ${matchInfo.category}` : ''}
+              </div>
+            )}
+
+            {/* Takımlar + merkez logo */}
+            <div className="flex items-center gap-6 md:gap-16 z-10">
+
+              {/* Ev sahibi */}
+              <div className="flex flex-col items-center gap-3 md:gap-4 animate-intro-left">
+                <div
+                  className="w-20 h-20 md:w-32 md:h-32 rounded-full flex items-center justify-center"
+                  style={{ background: 'rgba(255,255,255,0.07)', border: '2px solid rgba(255,255,255,0.15)' }}
+                >
+                  {matchInfo.homeLogo
+                    // eslint-disable-next-line @next/next/no-img-element
+                    ? <img src={matchInfo.homeLogo} alt="" className="w-16 h-16 md:w-24 md:h-24 object-contain drop-shadow-2xl" />
+                    : <span className="text-white/30 text-3xl md:text-5xl font-black">{matchInfo.homeTeam?.[0] || '?'}</span>
+                  }
+                </div>
+                <span className="text-white font-black text-sm md:text-xl text-center max-w-[120px] md:max-w-[160px] leading-tight drop-shadow-lg">
+                  {matchInfo.homeTeam}
+                </span>
+              </div>
+
+              {/* Merkez: EUGSK amblemi */}
+              <div className="flex flex-col items-center gap-2 z-10">
+                <div
+                  className="w-12 h-12 md:w-18 md:h-18 rounded-full flex items-center justify-center"
+                  style={{
+                    background: 'rgba(201,162,39,0.12)',
+                    border: '2px solid rgba(201,162,39,0.45)',
+                    width: '3.5rem', height: '3.5rem',
+                  }}
+                >
+                  <span className="text-secondary font-black text-[9px] tracking-wider text-center leading-tight px-1">
+                    EUGSK
+                  </span>
+                </div>
+              </div>
+
+              {/* Deplasman */}
+              <div className="flex flex-col items-center gap-3 md:gap-4 animate-intro-right">
+                <div
+                  className="w-20 h-20 md:w-32 md:h-32 rounded-full flex items-center justify-center"
+                  style={{ background: 'rgba(255,255,255,0.07)', border: '2px solid rgba(255,255,255,0.15)' }}
+                >
+                  {matchInfo.awayLogo
+                    // eslint-disable-next-line @next/next/no-img-element
+                    ? <img src={matchInfo.awayLogo} alt="" className="w-16 h-16 md:w-24 md:h-24 object-contain drop-shadow-2xl" />
+                    : <span className="text-white/30 text-3xl md:text-5xl font-black">{matchInfo.awayTeam?.[0] || '?'}</span>
+                  }
+                </div>
+                <span className="text-white font-black text-sm md:text-xl text-center max-w-[120px] md:max-w-[160px] leading-tight drop-shadow-lg">
+                  {matchInfo.awayTeam}
+                </span>
+              </div>
             </div>
-          )}
-          <div className="flex items-center gap-8 md:gap-16">
-            <div className="flex flex-col items-center gap-3 animate-intro-left">
-              {matchInfo.homeLogo
-                // eslint-disable-next-line @next/next/no-img-element
-                ? <img src={matchInfo.homeLogo} alt="" className="w-20 h-20 md:w-28 md:h-28 object-contain drop-shadow-xl" />
-                : <div className="w-20 h-20 md:w-28 md:h-28 rounded-full bg-white/10 flex items-center justify-center text-white/30 text-3xl font-black">{matchInfo.homeTeam?.[0] || '?'}</div>
-              }
-              <span className="text-white font-black text-lg md:text-2xl text-center max-w-[140px] leading-tight drop-shadow-lg">{matchInfo.homeTeam}</span>
-            </div>
-            <div className="text-white/30 text-2xl font-black tracking-widest">VS</div>
-            <div className="flex flex-col items-center gap-3 animate-intro-right">
-              {matchInfo.awayLogo
-                // eslint-disable-next-line @next/next/no-img-element
-                ? <img src={matchInfo.awayLogo} alt="" className="w-20 h-20 md:w-28 md:h-28 object-contain drop-shadow-xl" />
-                : <div className="w-20 h-20 md:w-28 md:h-28 rounded-full bg-white/10 flex items-center justify-center text-white/30 text-3xl font-black">{matchInfo.awayTeam?.[0] || '?'}</div>
-              }
-              <span className="text-white font-black text-lg md:text-2xl text-center max-w-[140px] leading-tight drop-shadow-lg">{matchInfo.awayTeam}</span>
-            </div>
+
+            {/* Saha */}
+            {matchInfo.venue && (
+              <div className="mt-6 md:mt-10 text-white/45 text-xs md:text-sm font-semibold tracking-[0.25em] uppercase z-10">
+                {matchInfo.venue}
+              </div>
+            )}
+
+            {/* Alt altın çizgi */}
+            <div
+              className="absolute bottom-0 left-0 right-0 h-[3px]"
+              style={{ background: 'linear-gradient(90deg, transparent 0%, #c9a227 30%, #c9a227 70%, transparent 100%)' }}
+            />
           </div>
-          {matchInfo.venue && <div className="mt-10 text-white/40 text-xs tracking-widest uppercase">{matchInfo.venue}</div>}
-          <div className="mt-12 text-white/20 text-xs font-semibold tracking-[0.4em] uppercase">EUGSK</div>
         </div>
       )}
 
